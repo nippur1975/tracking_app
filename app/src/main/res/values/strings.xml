@@ -19,6 +19,7 @@
     <string name="channel_setting">Channel Settings</string>
     <string name="channel_select">Select Channel</string>
     <string name="language_select">Language</string>
+    <string name="save">Save</string>
     <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
         <!-- Customize your theme here. -->
     </style>
