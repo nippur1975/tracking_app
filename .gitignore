@@ -1,10 +1,22 @@
+# Android / Gradle
+.gradle/
+build/
+**/build/
+
+# Local configuration
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
 *.iml
-.gradle
-/local.properties
-/.idea/
+
+# Native build
+.externalNativeBuild/
+.cxx/
+
+# Android Studio captures
+captures/
+
+# OS noise
 .DS_Store
-/build
-/app/build
-/captures
-.externalNativeBuild
-.cxx
+Thumbs.db
