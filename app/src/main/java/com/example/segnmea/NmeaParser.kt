@@ -11,6 +11,7 @@ data class NmeaData(
     var heading: Double? = null,
     var pitch: Double? = null,
     var roll: Double? = null,
+    var rot: Double? = null,
     var timestamp: String? = null
 )
 
@@ -32,6 +33,7 @@ class NmeaParser {
                 "\$GPZDA", "\$GNZDA" -> parseZDA(parts, data)
                 "\$GPVTG", "\$GNVTG" -> parseVTG(parts, data)
                 "\$HCHDG", "\$HCHDT", "\$GPHDT" -> parseHeading(parts, data)
+                "\$GPROT" -> parseROT(parts, data)
                 "\$IIXDR" -> parseXDR(parts, data)
                 "\$PFEC" -> if (parts.size > 1 && parts[1] == "GPatt") parseGPatt(parts, data)
                 // Custom formats or others can be added here
@@ -140,6 +142,13 @@ class NmeaParser {
          if (parts.size > 1) {
              data.heading = parts[1].toDoubleOrNull()
          }
+    }
+
+    private fun parseROT(parts: List<String>, data: NmeaData) {
+        // $GPROT,-57.3,A*2D
+        if (parts.size > 1) {
+            data.rot = parts[1].toDoubleOrNull()
+        }
     }
 
     private fun parseGPatt(parts: List<String>, data: NmeaData) {
