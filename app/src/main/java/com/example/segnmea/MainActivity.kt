@@ -100,9 +100,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         )
 
-        // IMPORTANT: Replace "YOUR_MAP_ID" with your actual Map ID
-        val mapOptions = GoogleMapOptions().mapId("YOUR_MAP_ID")
-        val mapFragment = SupportMapFragment.newInstance(mapOptions)
+        // IMPORTANT: Replace "YOUR_MAP_ID" with your actual Map ID if using Cloud Styling
+        // val mapOptions = GoogleMapOptions().mapId("YOUR_MAP_ID")
+        val mapFragment = SupportMapFragment.newInstance()
         supportFragmentManager.beginTransaction()
             .replace(R.id.map, mapFragment)
             .commit()
