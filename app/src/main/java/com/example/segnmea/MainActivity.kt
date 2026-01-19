@@ -622,7 +622,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         val url = "https://api.thingspeak.com/update"
 
-        val queue = Volley.newRequestQueue(this)
         val request = object : StringRequest(Request.Method.POST, url,
             { response ->
                 // Log.d("ThingSpeak", "Success: $response")
@@ -643,6 +642,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 return params
             }
         }
-        queue.add(request)
+        VolleySingleton.getInstance(this).addToRequestQueue(request)
     }
 }

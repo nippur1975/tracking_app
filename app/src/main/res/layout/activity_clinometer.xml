@@ -8,75 +8,68 @@
     tools:context=".ClinometerActivity">
 
     <TextView
-        android:id="@+id/pitchLabel"
+        android:id="@+id/channelNameTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:text="Pitch (Cabeceo)"
+        android:layout_marginTop="16dp"
+        android:text="Channel Name"
         android:textColor="#FFFFFF"
-        android:textSize="24sp"
+        android:textSize="20sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <TextView
-        android:id="@+id/pitchTextView"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        android:weightSum="2"
+        app:layout_constraintTop_toBottomOf="@+id/channelNameTextView"
+        app:layout_constraintBottom_toTopOf="@+id/buttonContainer">
+
+        <com.example.segnmea.PitchView
+            android:id="@+id/pitchImageView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <com.example.segnmea.RollView
+            android:id="@+id/rollImageView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/buttonContainer"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="0°"
-        android:textColor="#00FF00"
-        android:textSize="48sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/pitchLabel" />
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:background="#333333"
+        app:layout_constraintBottom_toBottomOf="parent">
 
-    <TextView
-        android:id="@+id/rollLabel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:text="Roll (Balanceo)"
-        android:textColor="#FFFFFF"
-        android:textSize="24sp"
-        app:layout_constraintBottom_toTopOf="@+id/rollTextView"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        <Button
+            android:id="@+id/mainButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Main" />
 
-    <TextView
-        android:id="@+id/rollTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="64dp"
-        android:text="0°"
-        android:textColor="#00FF00"
-        android:textSize="48sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        <Button
+            android:id="@+id/compassButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Compass" />
 
-    <View
-        android:id="@+id/horizonView"
-        android:layout_width="200dp"
-        android:layout_height="200dp"
-        android:background="#33FFFFFF"
-        app:layout_constraintTop_toBottomOf="@+id/pitchTextView"
-        app:layout_constraintBottom_toTopOf="@+id/rollLabel"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        />
-
-     <View
-        android:id="@+id/artificialHorizonLine"
-        android:layout_width="180dp"
-        android:layout_height="4dp"
-        android:background="#FF0000"
-        app:layout_constraintTop_toTopOf="@+id/horizonView"
-        app:layout_constraintBottom_toBottomOf="@+id/horizonView"
-        app:layout_constraintStart_toStartOf="@+id/horizonView"
-        app:layout_constraintEnd_toEndOf="@+id/horizonView"
-        />
+        <Button
+            android:id="@+id/dataButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Data" />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

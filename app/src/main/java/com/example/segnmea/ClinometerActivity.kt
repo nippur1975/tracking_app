@@ -1,15 +1,27 @@
 package com.example.segnmea
 
-import android.os.Bundle
-import android.view.View
-import android.widget.TextView
+import android.content.Context
+import android.content.Intent
+import android.media.MediaPlayer
 import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import com.example.segnmea.databinding.ActivityClinometerBinding
+import java.util.*
 
+/**
+ * Activity that displays the clinometer.
+ */
 class ClinometerActivity : AppCompatActivity() {
 
-    private lateinit var pitchTextView: TextView
-    private lateinit var rollTextView: TextView
-    private lateinit var horizonLine: View
+    private lateinit var binding: ActivityClinometerBinding
+    private val handler = Handler(Looper.getMainLooper())
+    private var channel = "3002133"
+    private var rollAlarm = 30f  // Solo alarma de roll
+    private var mediaPlayer: MediaPlayer? = null
+    private var lastAlarmTime = 0L
+    private val ALARM_COOLDOWN = 5000L // 5 seconds
 
     private val dataListener: (NmeaData) -> Unit = { data ->
         runOnUiThread {
@@ -19,13 +31,30 @@ class ClinometerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_clinometer)
-        title = "Clinometer"
+        binding = ActivityClinometerBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        title = getString(R.string.clinometer) // Ensure string resource exists or use "Clinometer"
 
-        pitchTextView = findViewById(R.id.pitchTextView)
-        rollTextView = findViewById(R.id.rollTextView)
-        horizonLine = findViewById(R.id.artificialHorizonLine)
+        // Get the channel ID from the intent
+        channel = intent.getStringExtra("channel_id") ?: "3002133"
+        binding.channelNameTextView.text = "My Boat (Bluetooth)"
 
+        // Set up the button click listeners
+        binding.mainButton.setOnClickListener {
+            startActivity(Intent(this, MainActivity::class.java))
+        }
+        binding.compassButton.setOnClickListener {
+            val intent = Intent(this, CompassActivity::class.java)
+            intent.putExtra("channel_id", channel)
+            startActivity(intent)
+        }
+        binding.dataButton.setOnClickListener {
+            val intent = Intent(this, DataActivity::class.java)
+            intent.putExtra("channel_id", channel)
+            startActivity(intent)
+        }
+
+        // Initialize with current data if available
         GlobalData.currentData?.let { updateUI(it) }
     }
 
@@ -39,24 +68,55 @@ class ClinometerActivity : AppCompatActivity() {
         GlobalData.removeListener(dataListener)
     }
 
+    /**
+     * Updates UI with data from Bluetooth (GlobalData).
+     * Replaces the original fetchData() which used Volley/ThingSpeak.
+     */
     private fun updateUI(data: NmeaData) {
-        val pitch = data.pitch
-        val roll = data.roll
+        val sharedPreferences = getSharedPreferences("Settings", Context.MODE_PRIVATE)
+        rollAlarm = sharedPreferences.getInt("rollAlarm", 30).toFloat()
 
-        if (pitch != null) {
-            pitchTextView.text = "${pitch}°"
-            // Simple visualization: move line up/down based on pitch
-            horizonLine.translationY = (pitch * 5).toFloat()
-        } else {
-            pitchTextView.text = "--"
+        val pitch = data.pitch?.toFloat() ?: 0f
+        val roll = data.roll?.toFloat() ?: 0f
+
+        // Update the views
+        (binding.pitchImageView as? PitchView)?.pitch = pitch
+        (binding.rollImageView as? RollView)?.roll = roll
+
+        checkAlarms(roll)
+    }
+
+    /**
+     * Checks if the roll value exceeds the alarm threshold and plays an alarm sound if it does.
+     */
+    private fun checkAlarms(roll: Float) {
+        val now = System.currentTimeMillis()
+        if (now - lastAlarmTime < ALARM_COOLDOWN) return
+
+        val language = Locale.getDefault().language
+        var soundResId = 0
+
+        if (roll > rollAlarm) {
+            soundResId = if (language == "es") R.raw.alarma_estribor else R.raw.starboard_alarm
+        } else if (roll < -rollAlarm) {
+            soundResId = if (language == "es") R.raw.alarma_babor else R.raw.port_alarm
         }
 
-        if (roll != null) {
-            rollTextView.text = "${roll}°"
-            // Simple visualization: rotate line based on roll
-            horizonLine.rotation = roll.toFloat()
-        } else {
-            rollTextView.text = "--"
+        if (soundResId != 0) {
+            try {
+                mediaPlayer?.release()
+                mediaPlayer = MediaPlayer.create(this, soundResId)
+                mediaPlayer?.start()
+                lastAlarmTime = now
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mediaPlayer?.release()
+        mediaPlayer = null
     }
 }

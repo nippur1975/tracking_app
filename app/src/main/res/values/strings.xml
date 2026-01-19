@@ -21,6 +21,8 @@
     <string name="channel">Channels</string>
     <string name="language_select">Language</string>
     <string name="save">Save</string>
+    <string name="compass">Compass</string>
+    <string name="clinometer">Clinometer</string>
     <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
         <!-- Customize your theme here. -->
     </style>
