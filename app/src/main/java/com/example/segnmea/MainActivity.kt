@@ -53,20 +53,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private var rulerMarkers = mutableListOf<Marker>()
     private var rulerPoints = mutableListOf<LatLng>()
     private var handler = Handler(Looper.getMainLooper())
-    private val channels = listOf("3002133", "3007462", "3017966", "3017982")
-    private val channelColors = listOf(
-        0xFF800080.toInt(), // Purple
-        0xFF0000FF.toInt(), // Blue
-        0xFFFF0000.toInt(), // Red
-        0xFFFFFF00.toInt()  // Yellow
-    )
     private var boatMarkers = mutableMapOf<String, Marker>()
     private var historicalData = mutableMapOf<String, MutableList<TrackPoint>>()
     private var trackPolylines = mutableMapOf<String, Polyline>()
     private var markerToTrackPointMap = mutableMapOf<Marker, TrackPoint>()
     private var currentChannel = "3002133"
     private var channelName = "Vessel"
-    private val refreshInterval = 15000L // 15 seconds
 
     // Bluetooth & Local Data
     private lateinit var bluetoothManager: BluetoothManager
@@ -76,6 +68,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private var lastUploadTime = 0L
     private val UPLOAD_INTERVAL = 15000L
     private var currentDay = ""
+
+    // Watchdog
+    private var lastBluetoothDataTime = 0L
+    private val WATCHDOG_INTERVAL = 1000L
+    private val BLUETOOTH_TIMEOUT = 3000L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -143,7 +140,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
         checkPermissions()
-        startRepeatingTask()
+        startWatchdog()
     }
 
     private fun checkPermissions() {
@@ -173,15 +170,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         map = googleMap
         map.uiSettings.isZoomControlsEnabled = true
 
-        channels.forEachIndexed { index, channel ->
-            val polyline = map.addPolyline(
-                PolylineOptions()
-                    .width(5f)
-                    .color(channelColors[index])
-            )
-            trackPolylines[channel] = polyline
-        }
-
         // Initialize local polyline
         val localPolyline = map.addPolyline(
              PolylineOptions()
@@ -192,7 +180,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         historicalData[LOCAL_CHANNEL_ID] = mutableListOf()
 
         binding.trackSwitch.isChecked = false
-        trackPolylines.values.forEach { it.isVisible = true }
         historicalMarkers.forEach { it.isVisible = false }
 
         map.setOnMarkerClickListener { marker ->
@@ -235,178 +222,31 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    private val updateTask = object : Runnable {
+    private val watchdogTask = object : Runnable {
         override fun run() {
-            // Only fetch if NOT connected to Bluetooth (or allow both, but usually we want to prioritize local)
-            // If connected to bluetooth, we might still want to see other boats.
-            channels.forEach { channel ->
-                fetchChannelData(channel)
+            val now = System.currentTimeMillis()
+            if (now - lastBluetoothDataTime > BLUETOOTH_TIMEOUT) {
+                showNoSignal()
             }
-            handler.postDelayed(this, refreshInterval)
+            handler.postDelayed(this, WATCHDOG_INTERVAL)
         }
     }
 
-    private fun startRepeatingTask() {
-        handler.post(updateTask)
+    private fun startWatchdog() {
+        handler.post(watchdogTask)
     }
 
-    private fun stopRepeatingTask() {
-        handler.removeCallbacks(updateTask)
+    private fun stopWatchdog() {
+        handler.removeCallbacks(watchdogTask)
     }
 
-    private fun fetchChannelData(channelId: String) {
-        executor.execute {
-            val response = fetchDataFromApi(channelId)
-            if (response != null) {
-                runOnUiThread {
-                    processResponse(channelId, response)
-                }
-            }
-        }
-    }
-
-    private fun fetchDataFromApi(channelId: String): String? {
-        val url = "https://api.thingspeak.com/channels/$channelId/feeds.json?results=2000"
-        try {
-            return java.net.URL(url).readText()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return null
-    }
-
-    private fun processResponse(channelId: String, response: String) {
-        // If we are looking at local channel, ignore updates for the channel we are supposedly currently watching (if it matches one of the remote ones)
-        // But let's just process everything in background.
-        try {
-            val jsonObject = JSONObject(response)
-            val channelObject = jsonObject.getJSONObject("channel")
-            val name = channelObject.getString("name")
-            val feeds = jsonObject.getJSONArray("feeds")
-
-            val points = mutableListOf<LatLng>()
-            val newHistoricalData = mutableListOf<TrackPoint>()
-            val startIndex = if (feeds.length() > 1000) feeds.length() - 1000 else 0
-            for (i in startIndex until feeds.length()) {
-                val feed = feeds.getJSONObject(i)
-                val lat = feed.optString("field3", "0")
-                val lon = feed.optString("field4", "0")
-                val pitch = feed.optString("field1", "0")
-                val roll = feed.optString("field2", "0")
-                val speed = feed.optString("field5", "0")
-                val heading = feed.optString("field6", "0")
-                val createdAt = feed.optString("created_at", "")
-                val latitude = lat.toDoubleOrNull() ?: 0.0
-                val longitude = lon.toDoubleOrNull() ?: 0.0
-
-                if (latitude != 0.0 && longitude != 0.0) {
-                    val trackPoint = TrackPoint(latitude, longitude, pitch, roll, speed, heading, createdAt)
-                    newHistoricalData.add(trackPoint)
-                    points.add(trackPoint.getPosition())
-                }
-            }
-
-            // Remove old markers for this channel
-            val markersToRemove = mutableListOf<Marker>()
-            markerToTrackPointMap.forEach { (marker, trackPoint) ->
-                if (historicalData[channelId]?.contains(trackPoint) == true && !newHistoricalData.contains(trackPoint)) {
-                    markersToRemove.add(marker)
-                }
-            }
-            markersToRemove.forEach {
-                it.remove()
-                markerToTrackPointMap.remove(it)
-            }
-
-            // Add new markers
-            newHistoricalData.forEach { trackPoint ->
-                if (!markerToTrackPointMap.containsValue(trackPoint)) {
-                    val historicalMarker = map.addMarker(
-                        MarkerOptions()
-                            .position(trackPoint.getPosition())
-                            .icon(BitmapDescriptorFactory.fromBitmap(getBitmap(R.drawable.ic_historical_marker, 0xFF0000FF.toInt())!!))
-                            .anchor(0.5f, 0.5f)
-                            .visible(false) // Initially hidden
-                    )
-                    if (historicalMarker != null) {
-                        markerToTrackPointMap[historicalMarker] = trackPoint
-                    }
-                }
-            }
-            historicalData[channelId] = newHistoricalData
-            // Only update historical markers visibility if this is the current channel
-            if (channelId == currentChannel) {
-                updateHistoricalMarkers()
-            }
-
-            trackPolylines[channelId]?.points = points
-
-            if (feeds.length() > 0) {
-                val lastFeed = feeds.getJSONObject(feeds.length() - 1)
-                val pitch = lastFeed.optString("field1", "0")
-                val roll = lastFeed.optString("field2", "0")
-                val lat = lastFeed.optString("field3", "0")
-                val lon = lastFeed.optString("field4", "0")
-                val speed = lastFeed.optString("field5", "0")
-                val heading = lastFeed.optString("field6", "0")
-                val latitude = lat.toDoubleOrNull() ?: 0.0
-                val longitude = lon.toDoubleOrNull() ?: 0.0
-                val position = LatLng(latitude, longitude)
-
-                // Update UI only if this is the selected channel AND we are not in Local Bluetooth mode
-                if (channelId == currentChannel && !isBluetoothConnected) {
-                    this@MainActivity.channelName = name
-                    updateUI(lat, lon, speed, heading, pitch, roll)
-                }
-
-                val speedValue = speed.toDoubleOrNull()
-                val iconResId: Int
-                val iconColor: Int
-
-                when {
-                    speedValue != null && speedValue > 2 -> {
-                        iconResId = R.drawable.ic_navigation
-                        iconColor = 0xFFd9534f.toInt()
-                    }
-                    speedValue != null && speedValue <= 1.5 -> {
-                        iconResId = R.drawable.ic_square_rotated
-                        iconColor = 0xFFf0ad4e.toInt()
-                    }
-                    else -> {
-                        iconResId = R.drawable.ic_navigation
-                        iconColor = channelColors.getOrElse(channels.indexOf(channelId)) { 0xFF000000.toInt() }
-                    }
-                }
-
-                val rotation = if (iconResId == R.drawable.ic_square_rotated) 90f else heading.toFloat()
-                val boatMarker = boatMarkers[channelId]
-                val bitmap = getBitmap(iconResId, iconColor)
-                if (boatMarker == null) {
-                    val newBoatMarker = map.addMarker(
-                        MarkerOptions()
-                            .position(position)
-                            .icon(BitmapDescriptorFactory.fromBitmap(bitmap!!))
-                            .rotation(rotation)
-                            .anchor(0.5f, 0.5f)
-                    )
-                    if (newBoatMarker != null) {
-                        newBoatMarker.tag = bitmap
-                        boatMarkers[channelId] = newBoatMarker
-                    }
-                    if (channelId == currentChannel && !isBluetoothConnected) {
-                        map.moveCamera(CameraUpdateFactory.newLatLngZoom(position, 15f))
-                    }
-                } else {
-                    boatMarker.position = position
-                    boatMarker.rotation = rotation
-                    boatMarker.setIcon(BitmapDescriptorFactory.fromBitmap(bitmap!!))
-                    boatMarker.tag = bitmap
-                }
-            }
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+    private fun showNoSignal() {
+        binding.latTextView.text = "Sin señal"
+        binding.lonTextView.text = "Sin señal"
+        binding.speedTextView.text = "Sin señal"
+        binding.headingTextView.text = "Sin señal"
+        binding.pitchTextView.text = "Sin señal"
+        binding.rollTextView.text = "Sin señal"
     }
 
 
@@ -508,7 +348,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onDestroy() {
         super.onDestroy()
-        stopRepeatingTask()
+        stopWatchdog()
         bluetoothManager.disconnect()
     }
 
@@ -552,7 +392,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 editor.apply()
 
                 updateHistoricalMarkers()
-                fetchChannelData(currentChannel)
 
                 val boatMarker = boatMarkers[currentChannel]
                 if (boatMarker != null) {
@@ -658,6 +497,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun onBluetoothDataReceived(line: String) {
+        lastBluetoothDataTime = System.currentTimeMillis()
+
         // Parse NMEA
         val data = nmeaParser.parse(line)
         if (data.latitude != null && data.longitude != null) {
