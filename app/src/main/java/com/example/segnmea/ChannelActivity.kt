@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.example.segnmea.databinding.ActivityChannelBinding
+import com.example.segnmea.R // Explicit import
 
 class ChannelActivity : AppCompatActivity() {
 
@@ -15,6 +16,8 @@ class ChannelActivity : AppCompatActivity() {
         binding = ActivityChannelBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Ensure R.string.channel exists. If not, fallback to hardcoded string to pass compilation.
+        // But since I verified it exists, I'll keep it but make sure R is correct.
         title = getString(R.string.channel)
 
         val sharedPreferences = getSharedPreferences("Settings", Context.MODE_PRIVATE)
