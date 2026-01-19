@@ -501,6 +501,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         // Parse NMEA
         val data = nmeaParser.parse(line)
+
+        // Update Global Data for Compass/Clinometer
+        GlobalData.update(data)
+
         if (data.latitude != null && data.longitude != null) {
             val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
