@@ -1,8 +1,0 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="100dp"
-    android:height="100dp"
-    android:viewportWidth="100"
-    android:viewportHeight="100">
-    <path d="M10,50 Q50,10 90,50" stroke="#FFFFFF" strokeWidth="2" fill="none"/>
-    <circle cx="50" cy="50" r="5" fill="#FFFFFF"/>
-</vector>
