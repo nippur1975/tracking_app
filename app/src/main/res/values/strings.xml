@@ -18,6 +18,7 @@
     <string name="settings_alarms">Alarm Settings</string>
     <string name="channel_setting">Channel Settings</string>
     <string name="channel_select">Select Channel</string>
+    <string name="channel">Channels</string>
     <string name="language_select">Language</string>
     <string name="save">Save</string>
     <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
