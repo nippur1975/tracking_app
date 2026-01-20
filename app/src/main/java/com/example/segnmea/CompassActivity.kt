@@ -2,8 +2,7 @@ package com.example.segnmea
 
 import android.content.Context
 import android.content.Intent
-import android.animation.ObjectAnimator
-import android.animation.PropertyValuesHolder
+import android.animation.ValueAnimator
 import android.view.animation.LinearInterpolator
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -79,7 +78,7 @@ class CompassActivity : AppCompatActivity() {
 
         // Animate the heading text if the value has changed
         if (headingValue != lastHeadingValue) {
-            animateHeadingText("${headingValue.toInt()}°")
+            animateHeadingChange(lastHeadingValue, headingValue)
             lastHeadingValue = headingValue
         }
 
@@ -95,19 +94,39 @@ class CompassActivity : AppCompatActivity() {
     }
 
     /**
-     * Animates the heading text.
+     * Animates the heading text change digit by digit.
      */
-    private fun animateHeadingText(newText: String) {
-        // Combined animation: scale + opacity
-        val scaleUpX = PropertyValuesHolder.ofFloat("scaleX", 1f, 1.3f, 1f)
-        val scaleUpY = PropertyValuesHolder.ofFloat("scaleY", 1f, 1.3f, 1f)
-        val fade = PropertyValuesHolder.ofFloat("alpha", 0f, 1f)
+    private fun animateHeadingChange(start: Float, end: Float) {
+        // Handle 0/360 wrap-around if needed, or just standard linear interpolation
+        // For simple "digit by digit" counting:
 
-        binding.headingValueTextView.text = newText
-        ObjectAnimator.ofPropertyValuesHolder(binding.headingValueTextView, scaleUpX, scaleUpY, fade).apply {
-            duration = 500 // half a second
-            start()
+        // If the jump is large (e.g. initialization), just set it?
+        // Or if we cross 0/360 boundary?
+        // E.g. 350 -> 10. Math.abs is 340. Shortest path is +20.
+        // If we want the number to roll 350, 351... 359, 0, 1... 10
+
+        var startVal = start
+        var endVal = end
+
+        // Shortest path logic for display
+        if (Math.abs(endVal - startVal) > 180) {
+            if (endVal > startVal) {
+                startVal += 360
+            } else {
+                endVal += 360
+            }
         }
+
+        val animator = ValueAnimator.ofFloat(startVal, endVal)
+        animator.duration = 500 // 500ms duration
+        animator.interpolator = LinearInterpolator()
+        animator.addUpdateListener { animation ->
+            var value = animation.animatedValue as Float
+            // Normalize back to 0-360 for display
+            value = (value % 360 + 360) % 360
+            binding.headingValueTextView.text = "${value.toInt()}°"
+        }
+        animator.start()
     }
 
     override fun onDestroy() {
