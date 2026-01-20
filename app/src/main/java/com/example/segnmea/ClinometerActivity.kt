@@ -41,7 +41,9 @@ class ClinometerActivity : AppCompatActivity() {
 
         // Set up the button click listeners
         binding.mainButton.setOnClickListener {
-            startActivity(Intent(this, MainActivity::class.java))
+            val intent = Intent(this, MainActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            startActivity(intent)
         }
         binding.compassButton.setOnClickListener {
             val intent = Intent(this, CompassActivity::class.java)
