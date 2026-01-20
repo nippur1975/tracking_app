@@ -505,7 +505,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         // Update Global Data for Compass/Clinometer
         GlobalData.update(data)
 
-        if (data.latitude != null && data.longitude != null) {
+        // Use aggregated data for display and history to ensure we have all fields
+        val aggregatedData = GlobalData.currentData
+
+        if (aggregatedData.latitude != null && aggregatedData.longitude != null) {
             val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
             // Check day reset
@@ -535,12 +538,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
 
             val trackPoint = TrackPoint(
-                data.latitude!!,
-                data.longitude!!,
-                data.pitch?.toString() ?: "0",
-                data.roll?.toString() ?: "0",
-                data.speed?.toString() ?: "0",
-                data.heading?.toString() ?: "0",
+                aggregatedData.latitude!!,
+                aggregatedData.longitude!!,
+                aggregatedData.pitch?.toString() ?: "0",
+                aggregatedData.roll?.toString() ?: "0",
+                aggregatedData.speed?.toString() ?: "0",
+                aggregatedData.heading?.toString() ?: "0",
                 timestamp
             )
 

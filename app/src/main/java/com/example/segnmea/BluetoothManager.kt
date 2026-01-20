@@ -120,15 +120,40 @@ class BluetoothManager(
                     val readMessage = String(buffer, 0, bytes)
                     stringBuilder.append(readMessage)
 
-                    // Process complete lines
-                    var newlineIndex = stringBuilder.indexOf('\n')
-                    while (newlineIndex != -1) {
-                        val line = stringBuilder.substring(0, newlineIndex).trim()
-                        if (line.isNotEmpty()) {
-                            handler.post { onDataReceived(line) }
+                    // Process complete lines or sentences starting with $
+                    // Some devices send multiple sentences on one line without proper newlines
+                    // e.g. $PFEC... $GPHDT...
+                    var dollarIndex = stringBuilder.indexOf('$')
+                    while (dollarIndex != -1) {
+                        // Find the next $ or newline
+                        var nextDelimiter = -1
+                        val nextDollar = stringBuilder.indexOf('$', dollarIndex + 1)
+                        val nextNewline = stringBuilder.indexOf('\n', dollarIndex)
+
+                        if (nextDollar != -1 && nextNewline != -1) {
+                            nextDelimiter = Math.min(nextDollar, nextNewline)
+                        } else if (nextDollar != -1) {
+                            nextDelimiter = nextDollar
+                        } else if (nextNewline != -1) {
+                            nextDelimiter = nextNewline
                         }
-                        stringBuilder.delete(0, newlineIndex + 1)
-                        newlineIndex = stringBuilder.indexOf('\n')
+
+                        if (nextDelimiter != -1) {
+                            val line = stringBuilder.substring(dollarIndex, nextDelimiter).trim()
+                            if (line.isNotEmpty()) {
+                                handler.post { onDataReceived(line) }
+                            }
+                            // If delimiter was $, we keep it for next iteration
+                            if (nextDelimiter == nextDollar) {
+                                stringBuilder.delete(0, nextDelimiter)
+                            } else {
+                                stringBuilder.delete(0, nextDelimiter + 1)
+                            }
+                            dollarIndex = stringBuilder.indexOf('$')
+                        } else {
+                            // No end of sentence found yet, wait for more data
+                            break
+                        }
                     }
 
                 } catch (e: IOException) {
