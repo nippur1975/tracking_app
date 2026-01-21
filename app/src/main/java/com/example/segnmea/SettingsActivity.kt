@@ -33,7 +33,7 @@ class SettingsActivity : AppCompatActivity() {
 
         // Load with defaults provided by the user
         val channelId = sharedPreferences.getString("channel_id", "3097347")
-        val writeApiKey = sharedPreferences.getString("write_api_key", "A9UJBBGR06NP852V")
+        val writeApiKey = sharedPreferences.getString("write_api_key", "A9UJBBGRO6NP852V")
 
         channelIdEditText.setText(channelId)
         writeApiKeyEditText.setText(writeApiKey)

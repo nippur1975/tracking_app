@@ -56,7 +56,7 @@ class ThingSpeakForegroundService : Service() {
 
                         // Check if we have an API Key
                         val sharedPreferences = getSharedPreferences("Settings", Context.MODE_PRIVATE)
-                        val apiKey = sharedPreferences.getString("write_api_key", "A9UJBBGR06NP852V")
+                        val apiKey = sharedPreferences.getString("write_api_key", "A9UJBBGRO6NP852V")
 
                         if (!apiKey.isNullOrEmpty()) {
                             sendToThingSpeak(

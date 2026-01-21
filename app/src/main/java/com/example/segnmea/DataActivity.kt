@@ -76,7 +76,6 @@ class DataActivity : AppCompatActivity() {
         val lon = data.longitude ?: 0.0
         val speed = data.speed?.toFloat() ?: 0f
         val heading = data.heading?.toFloat() ?: 0f
-        val rot = data.rot?.toFloat() ?: 0f
 
         binding.channelNameTextView.text = "My Boat (Bluetooth)"
         binding.pitchTextView.text = "%.1f°".format(pitch)
@@ -85,7 +84,6 @@ class DataActivity : AppCompatActivity() {
         binding.lonTextView.text = formatLon(lon)
         binding.speedTextView.text = "%.1f knots".format(speed)
         binding.headingTextView.text = "${heading.toInt()}°"
-        binding.rotTextView.text = "${rot.toInt()}"
 
         val timestamp = data.timestamp
         if (timestamp != null) {

@@ -38,6 +38,30 @@ class ROTView @JvmOverloads constructor(
         paint.strokeWidth = 4f
         canvas.drawLine(centerX, 0f, centerX, height, paint)
 
+        // Draw ticks: -40, -20, -10, 0, 10, 20, 40
+        // -40 is left edge, +40 is right edge
+        val ticks = listOf(-40, -20, -10, 0, 10, 20, 40)
+        paint.strokeWidth = 2f
+        paint.color = Color.WHITE
+        paint.textSize = 24f
+        paint.textAlign = Paint.Align.CENTER
+
+        for (tickVal in ticks) {
+             // Map tickVal (-40..40) to x (0..width)
+             // -40 -> 0, 0 -> width/2, 40 -> width
+             val x = (tickVal + maxRot) / (2 * maxRot) * width
+
+             // Draw tick line (small, e.g., 20% of height from top and bottom or just full height thin line?)
+             // User asked for "garrapatas", usually small markings.
+             canvas.drawLine(x, 0f, x, height / 3, paint)
+             canvas.drawLine(x, height - (height / 3), x, height, paint)
+
+             // Optional: Draw text? User didn't strictly ask for numbers, but it helps.
+             // "añade garrapatas de -40..." implies marking them.
+             // Given height is small (20dp in layout), text might not fit well.
+             // I will stick to lines for now to avoid clutter in small bar.
+        }
+
         // Draw ROT bar
         // User logic:
         // "si es estribor color verde (hasta -40) si es babor color rojo (hasta 40)"
@@ -66,8 +90,8 @@ class ROTView @JvmOverloads constructor(
         // Right Side (0 to 40) = Red (Babor/Port) ?
 
         // I will follow the visual implementation:
-        // If rot < 0: Draw Red bar from Center towards Left (Babor).
-        // If rot > 0: Draw Green bar from Center towards Right (Estribor).
+        // If rot < 0: Draw RED bar from Center towards Left (Babor/Port).
+        // If rot > 0: Draw GREEN bar from Center towards Right (Estribor/Starboard).
         // Let's map -40 to Left, +40 to Right.
 
         if (rotValue < 0) {
