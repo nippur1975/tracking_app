@@ -57,8 +57,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private var historicalData = mutableMapOf<String, MutableList<TrackPoint>>()
     private var trackPolylines = mutableMapOf<String, Polyline>()
     private var markerToTrackPointMap = mutableMapOf<Marker, TrackPoint>()
-    private var currentChannel = "3002133"
-    private var channelName = "Vessel"
+    // Default to local bluetooth channel to show data immediately
+    private var currentChannel = "local_bluetooth"
+    private var channelName = "My Boat (Bluetooth)"
 
     // Local Data
     private val LOCAL_CHANNEL_ID = "local_bluetooth"
@@ -86,8 +87,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         title = getString(R.string.app_name)
 
         val sharedPreferences = getSharedPreferences("Settings", Context.MODE_PRIVATE)
-        currentChannel = sharedPreferences.getString("current_channel", "3002133") ?: "3002133"
-        channelName = sharedPreferences.getString("current_channel_name", "Vessel") ?: "Vessel"
+        // Default to local_bluetooth if not set
+        currentChannel = sharedPreferences.getString("current_channel", LOCAL_CHANNEL_ID) ?: LOCAL_CHANNEL_ID
+        channelName = sharedPreferences.getString("current_channel_name", "My Boat (Bluetooth)") ?: "My Boat (Bluetooth)"
 
         // IMPORTANT: Replace "YOUR_MAP_ID" with your actual Map ID if using Cloud Styling
         val mapFragment = SupportMapFragment.newInstance()

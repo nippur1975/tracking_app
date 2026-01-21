@@ -23,7 +23,7 @@ class NmeaParser {
 
         // Remove checksum if present
         val cleanSentence = if (sentence.contains("*")) sentence.split("*")[0] else sentence
-        val parts = cleanSentence.split(",")
+        val parts = cleanSentence.split(",").map { it.trim() }
 
         try {
             when (parts[0]) {
