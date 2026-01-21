@@ -11,7 +11,6 @@ class SettingsActivity : AppCompatActivity() {
 
     private lateinit var channelIdEditText: EditText
     private lateinit var writeApiKeyEditText: EditText
-    private lateinit var readApiKeyEditText: EditText
     private lateinit var saveButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -20,7 +19,6 @@ class SettingsActivity : AppCompatActivity() {
 
         channelIdEditText = findViewById(R.id.channelIdEditText)
         writeApiKeyEditText = findViewById(R.id.writeApiKeyEditText)
-        readApiKeyEditText = findViewById(R.id.readApiKeyEditText)
         saveButton = findViewById(R.id.saveButton)
 
         loadSettings()
@@ -36,17 +34,14 @@ class SettingsActivity : AppCompatActivity() {
         // Load with defaults provided by the user
         val channelId = sharedPreferences.getString("channel_id", "3097347")
         val writeApiKey = sharedPreferences.getString("write_api_key", "A9UJBBGR06NP852V")
-        val readApiKey = sharedPreferences.getString("read_api_key", "009Q3A0PLZKKVH6H")
 
         channelIdEditText.setText(channelId)
         writeApiKeyEditText.setText(writeApiKey)
-        readApiKeyEditText.setText(readApiKey)
     }
 
     private fun saveSettings() {
         val channelId = channelIdEditText.text.toString().trim()
         val writeApiKey = writeApiKeyEditText.text.toString().trim()
-        val readApiKey = readApiKeyEditText.text.toString().trim()
 
         if (channelId.isEmpty() || writeApiKey.isEmpty()) {
             Toast.makeText(this, "Channel ID and Write API Key are required", Toast.LENGTH_SHORT).show()
@@ -57,7 +52,6 @@ class SettingsActivity : AppCompatActivity() {
         val editor = sharedPreferences.edit()
         editor.putString("channel_id", channelId)
         editor.putString("write_api_key", writeApiKey)
-        editor.putString("read_api_key", readApiKey)
         editor.apply()
 
         Toast.makeText(this, "Settings saved", Toast.LENGTH_SHORT).show()

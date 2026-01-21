@@ -195,32 +195,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         trackPolylines[LOCAL_CHANNEL_ID] = localPolyline
         historicalData[LOCAL_CHANNEL_ID] = mutableListOf()
 
-        historicalMarkers.forEach { it.isVisible = true }
-
-        map.setOnMarkerClickListener { marker ->
-            val trackPoint = markerToTrackPointMap[marker]
-            if (trackPoint != null) {
-                val latFormatted = formatCoordinate(trackPoint.lat.toString(), "N", "S")
-                val lonFormatted = formatCoordinate(trackPoint.lon.toString(), "E", "W")
-                val speedAbs = trackPoint.speed.toDoubleOrNull()?.let { Math.abs(it).toInt() }?.toString() ?: trackPoint.speed
-                val headingAbs = trackPoint.heading.toDoubleOrNull()?.let { Math.abs(it).toInt() }?.toString() ?: trackPoint.heading
-
-                val message = "Fecha: ${trackPoint.createdAt}\n" +
-                              "Lat: $latFormatted\n" +
-                              "Lon: $lonFormatted\n" +
-                              "Speed: $speedAbs kn\n" +
-                              "Heading: $headingAbs°\n" +
-                              "Pitch: ${trackPoint.pitch}°\n" +
-                              "Roll: ${trackPoint.roll}°"
-
-                AlertDialog.Builder(this)
-                    .setTitle("Datos del Punto Histórico")
-                    .setMessage(message)
-                    .setPositiveButton("Aceptar", null)
-                    .show()
-            }
-            true
-        }
+        // historicalMarkers.forEach { it.isVisible = true } // Disable historical dots
 
         map.setPadding(0, 0, 0, binding.buttonContainer.height)
 
@@ -266,9 +241,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
 
-    private fun updateUI(lat: String, lon: String, speed: String, heading: String, pitch: String, roll: String) {
+    private fun updateUI(lat: String, lon: String, speed: String, heading: String, pitch: String, roll: String, rot: String = "0") {
         val latFormatted = formatCoordinate(lat, "N", "S")
         val lonFormatted = formatCoordinate(lon, "E", "W")
+
+        // Update ROT view
+        val rotValue = rot.toFloatOrNull() ?: 0f
+        val rotView = findViewById<ROTView>(R.id.rotView)
+        rotView?.setROT(rotValue)
         val headingAbs = heading.toDoubleOrNull()?.let { Math.abs(it) }?.toInt()?.toString() ?: heading
         val speedAbs = speed.toDoubleOrNull()?.let { Math.abs(it).toInt() }?.toString() ?: speed
 
@@ -506,7 +486,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 aggregatedData.speed?.toString() ?: "0",
                 aggregatedData.heading?.toString() ?: "0",
                 aggregatedData.pitch?.toString() ?: "0",
-                aggregatedData.roll?.toString() ?: "0"
+                aggregatedData.roll?.toString() ?: "0",
+                aggregatedData.rot?.toString() ?: "0"
             )
         }
 
@@ -549,42 +530,28 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 val points = historicalData[LOCAL_CHANNEL_ID]?.map { it.getPosition() } ?: emptyList()
                 trackPolylines[LOCAL_CHANNEL_ID]?.points = points
 
-                // Add marker
-                 val historicalMarker = map.addMarker(
-                    MarkerOptions()
-                        .position(trackPoint.getPosition())
-                        .icon(BitmapDescriptorFactory.fromBitmap(getBitmap(R.drawable.ic_historical_marker, 0xFF00FF00.toInt())!!))
-                        .anchor(0.5f, 0.5f)
-                )
-                if (historicalMarker != null) {
-                    markerToTrackPointMap[historicalMarker] = trackPoint
-                    historicalMarkers.add(historicalMarker)
-                }
-
                 // Move Boat Marker
                 val boatMarker = boatMarkers[LOCAL_CHANNEL_ID]
-                val iconResId = R.drawable.ic_navigation
-                val iconColor = 0xFF00FF00.toInt()
-                val bitmap = getBitmap(iconResId, iconColor)
                 val rotation = trackPoint.heading.toFloatOrNull() ?: 0f
+                val redTriangleBitmap = getBitmap(R.drawable.ic_triangle_red, 0xFFFF0000.toInt()) // Ensure using red triangle
 
                 if (boatMarker == null) {
                      val newBoatMarker = map.addMarker(
                         MarkerOptions()
                             .position(trackPoint.getPosition())
-                            .icon(BitmapDescriptorFactory.fromBitmap(bitmap!!))
+                            .icon(BitmapDescriptorFactory.fromBitmap(redTriangleBitmap!!))
                             .rotation(rotation)
                             .anchor(0.5f, 0.5f)
                     )
                     if (newBoatMarker != null) {
-                        newBoatMarker.tag = bitmap
+                        newBoatMarker.tag = redTriangleBitmap
                         boatMarkers[LOCAL_CHANNEL_ID] = newBoatMarker
                     }
                     map.animateCamera(CameraUpdateFactory.newLatLng(trackPoint.getPosition()))
                 } else {
                     boatMarker.position = trackPoint.getPosition()
                     boatMarker.rotation = rotation
-                    boatMarker.setIcon(BitmapDescriptorFactory.fromBitmap(bitmap!!))
+                    boatMarker.setIcon(BitmapDescriptorFactory.fromBitmap(redTriangleBitmap!!))
                 }
             }
         }

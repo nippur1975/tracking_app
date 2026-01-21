@@ -105,6 +105,25 @@
 
     </LinearLayout>
 
+    <!-- ROT Bar Overlay at bottom of map, above buttons -->
+    <LinearLayout
+        android:id="@+id/rotBarContainer"
+        android:layout_width="match_parent"
+        android:layout_height="20dp"
+        android:orientation="horizontal"
+        android:background="#80000000"
+        app:layout_constraintBottom_toTopOf="@+id/buttonContainer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- ROT Visualization View -->
+        <com.example.segnmea.ROTView
+            android:id="@+id/rotView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </LinearLayout>
+
     <LinearLayout
         android:id="@+id/buttonContainer"
         android:layout_width="match_parent"
