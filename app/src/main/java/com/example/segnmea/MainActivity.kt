@@ -352,6 +352,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 Toast.makeText(this, "Bluetooth Managed by Service", Toast.LENGTH_SHORT).show()
                 true
             }
+            R.id.action_settings -> {
+                startActivity(Intent(this, SettingsActivity::class.java))
+                true
+            }
             R.id.action_about -> {
                 val aboutDialog = AlertDialog.Builder(this)
                     .setTitle(getString(R.string.about_title))

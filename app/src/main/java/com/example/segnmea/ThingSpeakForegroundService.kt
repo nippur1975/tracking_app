@@ -56,7 +56,7 @@ class ThingSpeakForegroundService : Service() {
 
                         // Check if we have an API Key
                         val sharedPreferences = getSharedPreferences("Settings", Context.MODE_PRIVATE)
-                        val apiKey = sharedPreferences.getString("write_api_key", "")
+                        val apiKey = sharedPreferences.getString("write_api_key", "A9UJBBGR06NP852V")
 
                         if (!apiKey.isNullOrEmpty()) {
                             sendToThingSpeak(
@@ -66,7 +66,8 @@ class ThingSpeakForegroundService : Service() {
                                 data.heading ?: 0.0,
                                 data.speed ?: 0.0,
                                 data.pitch ?: 0.0,
-                                data.roll ?: 0.0
+                                data.roll ?: 0.0,
+                                data.rot ?: 0.0
                             )
                         }
                     } catch (e: Exception) {
@@ -112,12 +113,12 @@ class ThingSpeakForegroundService : Service() {
 
     private fun sendToThingSpeak(
         apiKey: String,
-        lat: Double, lon: Double, rumbo: Double, vel: Double, pitch: Double, roll: Double
+        lat: Double, lon: Double, rumbo: Double, vel: Double, pitch: Double, roll: Double, rot: Double
     ) {
-        // field1=pitch field2=roll field3=lat field4=lon field5=speed field6=heading (Matching MainActivity logic)
+        // field1=Lat, field2=Lon, field3=Hdg, field4=Spd, field5=Pitch, field6=Roll, field7=ROT
         val urlStr =
             "https://api.thingspeak.com/update?api_key=$apiKey" +
-                    "&field1=$pitch&field2=$roll&field3=$lat&field4=$lon&field5=$vel&field6=$rumbo"
+                    "&field1=$lat&field2=$lon&field3=$rumbo&field4=$vel&field5=$pitch&field6=$roll&field7=$rot"
 
         try {
             val url = URL(urlStr)
