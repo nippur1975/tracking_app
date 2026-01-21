@@ -63,8 +63,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     // Local Data
     private val LOCAL_CHANNEL_ID = "local_bluetooth"
     private var currentDay = ""
-    private var lastBluetoothDataTime = System.currentTimeMillis()
-    private var isBluetoothConnected = false
+
+    // Explicitly declared state variables
+    var lastBluetoothDataTime: Long = System.currentTimeMillis()
+    var isBluetoothConnected: Boolean = false
 
     // Watchdog logic (UI only now)
     private val WATCHDOG_INTERVAL = 1000L
@@ -169,37 +171,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // Removed old checkPermissions
-
     private fun startThingSpeakService() {
         val intent = Intent(this, ThingSpeakForegroundService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)
         } else {
             startService(intent)
-        }
-    }
-
-    private fun checkPermissions() {
-        val permissions = mutableListOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        )
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            permissions.add(Manifest.permission.BLUETOOTH_SCAN)
-            permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
-        } else {
-            permissions.add(Manifest.permission.BLUETOOTH)
-            permissions.add(Manifest.permission.BLUETOOTH_ADMIN)
-        }
-
-        val permissionsToRequest = permissions.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
-
-        if (permissionsToRequest.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), 1001)
         }
     }
 
@@ -261,7 +238,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private val watchdogTask = object : Runnable {
         override fun run() {
             val now = System.currentTimeMillis()
-            if (now - lastBluetoothDataTime > BLUETOOTH_TIMEOUT) {
+            // Access using this@MainActivity to ensure correct scope resolution
+            if (now - this@MainActivity.lastBluetoothDataTime > BLUETOOTH_TIMEOUT) {
                 showNoSignal()
             }
             handler.postDelayed(this, WATCHDOG_INTERVAL)
