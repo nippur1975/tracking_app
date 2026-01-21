@@ -12,10 +12,11 @@ import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
 import java.net.HttpURLConnection
 import java.net.URL
+import org.json.JSONObject
 
-class ThingSpeakForegroundService : Service() {
+class SupabaseForegroundService : Service() {
 
-    private val channelId = "thingspeak_service"
+    private val channelId = "supabase_service"
     private val notifId = 1001
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -34,14 +35,13 @@ class ThingSpeakForegroundService : Service() {
         bluetoothManager = BluetoothManager(this,
             onDataReceived = { line -> onBluetoothDataReceived(line) },
             onStatusChange = { status ->
-                // Optional: Update notification or log status
                 Log.d("ServiceBT", status)
             }
         )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(notifId, buildNotification("Enviando datos a ThingSpeak cada 15 s"))
+        startForeground(notifId, buildNotification("Sending data to Supabase every 15s"))
 
         // Try to connect if not connected
         autoConnectToFuruno()
@@ -51,23 +51,18 @@ class ThingSpeakForegroundService : Service() {
                 while (isActive) {
                     try {
                         val data = GlobalData.currentData
-                        // Only upload if we have meaningful data (e.g. at least speed or heading or pos)
-                        // Or just upload whatever we have as "heartbeat"
 
-                        // Check if we have an API Key
                         val sharedPreferences = getSharedPreferences("Settings", Context.MODE_PRIVATE)
-                        val apiKey = sharedPreferences.getString("write_api_key", "A9UJBBGRO6NP852V")
+                        val supabaseUrl = sharedPreferences.getString("supabase_url", "https://lnxziegzyilfnibmfrtz.supabase.co") ?: ""
+                        val supabaseKey = sharedPreferences.getString("supabase_key", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxueHppZWd6eWlsZm5pYm1mcnR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwMjI1OTQsImV4cCI6MjA4NDU5ODU5NH0.ltom27lQCmTyI-3NfPW6tMWpEMOL6fXh2dc8ksx0DsQ") ?: ""
+                        val tableName = sharedPreferences.getString("supabase_table", "nmea_logs") ?: "nmea_logs"
 
-                        if (!apiKey.isNullOrEmpty()) {
-                            sendToThingSpeak(
-                                apiKey,
-                                data.latitude ?: 0.0,
-                                data.longitude ?: 0.0,
-                                data.heading ?: 0.0,
-                                data.speed ?: 0.0,
-                                data.pitch ?: 0.0,
-                                data.roll ?: 0.0,
-                                data.rot ?: 0.0
+                        if (supabaseUrl.isNotEmpty() && supabaseKey.isNotEmpty() && tableName.isNotEmpty()) {
+                            sendToSupabase(
+                                supabaseUrl,
+                                supabaseKey,
+                                tableName,
+                                data
                             )
                         }
                     } catch (e: Exception) {
@@ -78,12 +73,10 @@ class ThingSpeakForegroundService : Service() {
             }
         }
 
-        // Si Android mata el proceso, intenta recrear el service
         return START_STICKY
     }
 
     private fun autoConnectToFuruno() {
-        // Simple auto-connect logic: check paired devices
         try {
             val pairedDevices = bluetoothManager.getPairedDevices()
             val targetDevice = pairedDevices.find { it.name == "SC50_FURUNO" }
@@ -91,12 +84,11 @@ class ThingSpeakForegroundService : Service() {
                 bluetoothManager.connect(targetDevice.address)
             }
         } catch (e: SecurityException) {
-            Log.e("ThingSpeakService", "Permission missing for Bluetooth scan/connect", e)
+            Log.e("SupabaseService", "Permission missing for Bluetooth scan/connect", e)
         }
     }
 
     private fun onBluetoothDataReceived(line: String) {
-        // Parse and update GlobalData
         val data = nmeaParser.parse(line)
         GlobalData.update(data)
     }
@@ -111,23 +103,50 @@ class ThingSpeakForegroundService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    private fun sendToThingSpeak(
-        apiKey: String,
-        lat: Double, lon: Double, rumbo: Double, vel: Double, pitch: Double, roll: Double, rot: Double
-    ) {
-        // field1=Lat, field2=Lon, field3=Hdg, field4=Spd, field5=Pitch, field6=Roll, field7=ROT
-        val urlStr =
-            "https://api.thingspeak.com/update?api_key=$apiKey" +
-                    "&field1=$lat&field2=$lon&field3=$rumbo&field4=$vel&field5=$pitch&field6=$roll&field7=$rot"
+    private fun sendToSupabase(urlBase: String, key: String, table: String, data: NmeaData) {
+        // Construct Endpoint
+        // https://<project>.supabase.co/rest/v1/<table>
+        val fullUrl = "$urlBase/rest/v1/$table"
+
+        val json = JSONObject()
+        json.put("latitude", data.latitude ?: 0.0)
+        json.put("longitude", data.longitude ?: 0.0)
+        json.put("heading", data.heading ?: 0.0)
+        json.put("speed", data.speed ?: 0.0)
+        json.put("pitch", data.pitch ?: 0.0)
+        json.put("roll", data.roll ?: 0.0)
+        json.put("rot", data.rot ?: 0.0)
+
+        // Optional: timestamp provided by device or server time.
+        // Supabase usually handles 'created_at' automatically if configured.
+        // If we want to send the NMEA timestamp:
+        if (data.timestamp != null) {
+             json.put("nmea_timestamp", data.timestamp)
+        }
 
         try {
-            val url = URL(urlStr)
+            val url = URL(fullUrl)
             val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "GET" // ThingSpeak update via GET is simpler here than Volley POST for background service
+            conn.requestMethod = "POST"
             conn.connectTimeout = 10_000
             conn.readTimeout = 10_000
 
-            conn.inputStream.use { it.readBytes() } // Consume response
+            // Supabase Headers
+            conn.setRequestProperty("apikey", key)
+            conn.setRequestProperty("Authorization", "Bearer $key")
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.setRequestProperty("Prefer", "return=minimal")
+
+            conn.doOutput = true
+            conn.outputStream.use { os ->
+                os.write(json.toString().toByteArray())
+                os.flush()
+            }
+
+            val responseCode = conn.responseCode
+            if (responseCode !in 200..299) {
+                Log.e("SupabaseService", "Error sending data: $responseCode")
+            }
             conn.disconnect()
         } catch (e: Exception) {
             e.printStackTrace()
@@ -154,7 +173,7 @@ class ThingSpeakForegroundService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val ch = NotificationChannel(
                 channelId,
-                "Envío ThingSpeak",
+                "Envío Supabase",
                 NotificationManager.IMPORTANCE_LOW
             )
             val nm = getSystemService(NotificationManager::class.java)

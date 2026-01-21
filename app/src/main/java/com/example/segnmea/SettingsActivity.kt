@@ -9,16 +9,18 @@ import androidx.appcompat.app.AppCompatActivity
 
 class SettingsActivity : AppCompatActivity() {
 
-    private lateinit var channelIdEditText: EditText
-    private lateinit var writeApiKeyEditText: EditText
+    private lateinit var supabaseUrlEditText: EditText
+    private lateinit var supabaseKeyEditText: EditText
+    private lateinit var supabaseTableEditText: EditText
     private lateinit var saveButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
 
-        channelIdEditText = findViewById(R.id.channelIdEditText)
-        writeApiKeyEditText = findViewById(R.id.writeApiKeyEditText)
+        supabaseUrlEditText = findViewById(R.id.supabaseUrlEditText)
+        supabaseKeyEditText = findViewById(R.id.supabaseKeyEditText)
+        supabaseTableEditText = findViewById(R.id.supabaseTableEditText)
         saveButton = findViewById(R.id.saveButton)
 
         loadSettings()
@@ -32,26 +34,30 @@ class SettingsActivity : AppCompatActivity() {
         val sharedPreferences = getSharedPreferences("Settings", Context.MODE_PRIVATE)
 
         // Load with defaults provided by the user
-        val channelId = sharedPreferences.getString("channel_id", "3097347")
-        val writeApiKey = sharedPreferences.getString("write_api_key", "A9UJBBGRO6NP852V")
+        val url = sharedPreferences.getString("supabase_url", "https://lnxziegzyilfnibmfrtz.supabase.co")
+        val key = sharedPreferences.getString("supabase_key", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxueHppZWd6eWlsZm5pYm1mcnR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwMjI1OTQsImV4cCI6MjA4NDU5ODU5NH0.ltom27lQCmTyI-3NfPW6tMWpEMOL6fXh2dc8ksx0DsQ")
+        val table = sharedPreferences.getString("supabase_table", "nmea_logs")
 
-        channelIdEditText.setText(channelId)
-        writeApiKeyEditText.setText(writeApiKey)
+        supabaseUrlEditText.setText(url)
+        supabaseKeyEditText.setText(key)
+        supabaseTableEditText.setText(table)
     }
 
     private fun saveSettings() {
-        val channelId = channelIdEditText.text.toString().trim()
-        val writeApiKey = writeApiKeyEditText.text.toString().trim()
+        val url = supabaseUrlEditText.text.toString().trim()
+        val key = supabaseKeyEditText.text.toString().trim()
+        val table = supabaseTableEditText.text.toString().trim()
 
-        if (channelId.isEmpty() || writeApiKey.isEmpty()) {
-            Toast.makeText(this, "Channel ID and Write API Key are required", Toast.LENGTH_SHORT).show()
+        if (url.isEmpty() || key.isEmpty()) {
+            Toast.makeText(this, "URL and API Key are required", Toast.LENGTH_SHORT).show()
             return
         }
 
         val sharedPreferences = getSharedPreferences("Settings", Context.MODE_PRIVATE)
         val editor = sharedPreferences.edit()
-        editor.putString("channel_id", channelId)
-        editor.putString("write_api_key", writeApiKey)
+        editor.putString("supabase_url", url)
+        editor.putString("supabase_key", key)
+        editor.putString("supabase_table", table)
         editor.apply()
 
         Toast.makeText(this, "Settings saved", Toast.LENGTH_SHORT).show()

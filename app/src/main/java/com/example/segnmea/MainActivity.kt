@@ -20,9 +20,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.collection.LruCache
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.android.volley.Request
-import com.android.volley.toolbox.StringRequest
-import com.android.volley.toolbox.Volley
 import com.example.segnmea.databinding.ActivityMainBinding
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -174,7 +171,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun startThingSpeakService() {
-        val intent = Intent(this, ThingSpeakForegroundService::class.java)
+        val intent = Intent(this, SupabaseForegroundService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)
         } else {

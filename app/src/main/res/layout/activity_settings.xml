@@ -12,7 +12,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="ThingSpeak Configuration"
+            android:text="Supabase Configuration"
             android:textSize="20sp"
             android:textStyle="bold"
             android:layout_marginBottom="16dp"/>
@@ -20,28 +20,42 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Channel ID"
+            android:text="Supabase URL"
             android:textStyle="bold" />
 
         <EditText
-            android:id="@+id/channelIdEditText"
+            android:id="@+id/supabaseUrlEditText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="e.g. 3097347"
-            android:inputType="number" />
+            android:hint="https://xyz.supabase.co"
+            android:inputType="textUri" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Write API Key"
+            android:text="Anon API Key"
             android:textStyle="bold"
             android:layout_marginTop="16dp" />
 
         <EditText
-            android:id="@+id/writeApiKeyEditText"
+            android:id="@+id/supabaseKeyEditText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="e.g. A9UJBBGR06NP852V"
+            android:hint="eyJh..."
+            android:inputType="text" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Table Name"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp" />
+
+        <EditText
+            android:id="@+id/supabaseTableEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="nmea_logs"
             android:inputType="text" />
 
         <Button
