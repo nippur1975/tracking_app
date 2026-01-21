@@ -77,6 +77,13 @@
             android:text="Roll: --"
             android:textColor="#FFFFFF" />
 
+        <TextView
+            android:id="@+id/rotTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ROT: --"
+            android:textColor="#FFFFFF" />
+
          <TextView
             android:id="@+id/rulerInfoTextView"
             android:layout_width="wrap_content"

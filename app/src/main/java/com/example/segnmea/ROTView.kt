@@ -66,20 +66,19 @@ class ROTView @JvmOverloads constructor(
         // Right Side (0 to 40) = Red (Babor/Port) ?
 
         // I will follow the visual implementation:
-        // If rot < 0: Draw Green bar from Center towards Left (or Right depending on value mapping).
+        // If rot < 0: Draw Red bar from Center towards Left (Babor).
+        // If rot > 0: Draw Green bar from Center towards Right (Estribor).
         // Let's map -40 to Left, +40 to Right.
-        // Value -20: Center -> Left. Color Green.
-        // Value +20: Center -> Right. Color Red.
 
         if (rotValue < 0) {
-            paint.color = Color.GREEN
-            val barLength = (Math.abs(rotValue) / maxRot) * (width / 2f)
-            // Drawing from center to left? Or center to right?
-            // If -40 is "Green", and we assume standard "Left is Negative", then bar goes to Left.
-            canvas.drawRect(centerX - barLength, 0f, centerX, height, paint)
-        } else if (rotValue > 0) {
             paint.color = Color.RED
             val barLength = (Math.abs(rotValue) / maxRot) * (width / 2f)
+            // Drawing from center to left
+            canvas.drawRect(centerX - barLength, 0f, centerX, height, paint)
+        } else if (rotValue > 0) {
+            paint.color = Color.GREEN
+            val barLength = (Math.abs(rotValue) / maxRot) * (width / 2f)
+            // Drawing from center to right
             canvas.drawRect(centerX, 0f, centerX + barLength, height, paint)
         }
     }

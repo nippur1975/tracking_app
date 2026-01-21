@@ -256,6 +256,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val language = sharedPreferences.getString("language", "en") ?: "en"
 
         binding.channelNameTextView.text = channelName
+        binding.rotTextView.text = "ROT: ${rotValue.toInt()}"
+
         if (language == "es") {
             binding.latTextView.text = "${getString(R.string.lat_es)} : $latFormatted"
             binding.lonTextView.text = "${getString(R.string.lon_es)} : $lonFormatted"
