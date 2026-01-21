@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">SegNmea</string>
+    <string name="app_name">LalitoTX</string>
     <string name="lat">Lat</string>
     <string name="lat_es">Latitud</string>
     <string name="lon">Lon</string>

@@ -122,10 +122,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             startActivity(intent)
         }
 
-        binding.trackSwitch.setOnCheckedChangeListener { _, _ ->
-            updateHistoricalMarkers()
-        }
-
         binding.rulerSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 binding.rulerInfoTextView.visibility = View.VISIBLE
@@ -141,6 +137,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         checkPermissions()
         startWatchdog()
+
+        // Auto-connect to paired device if name matches SC50_FURUNO
+        autoConnectToFuruno()
+    }
+
+    private fun autoConnectToFuruno() {
+        val pairedDevices = bluetoothManager.getPairedDevices()
+        val targetDevice = pairedDevices.find { it.name == "SC50_FURUNO" }
+        if (targetDevice != null) {
+            Toast.makeText(this, "Auto-connecting to ${targetDevice.name}", Toast.LENGTH_SHORT).show()
+            bluetoothManager.connect(targetDevice.address)
+        }
     }
 
     private fun checkPermissions() {
@@ -179,8 +187,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         trackPolylines[LOCAL_CHANNEL_ID] = localPolyline
         historicalData[LOCAL_CHANNEL_ID] = mutableListOf()
 
-        binding.trackSwitch.isChecked = false
-        historicalMarkers.forEach { it.isVisible = false }
+        historicalMarkers.forEach { it.isVisible = true }
 
         map.setOnMarkerClickListener { marker ->
             val trackPoint = markerToTrackPointMap[marker]
@@ -315,22 +322,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return when (item.itemId) {
             R.id.action_connect_bluetooth -> {
                 showBluetoothDeviceSelection()
-                true
-            }
-            R.id.action_alarm_settings -> {
-                startActivity(Intent(this, AlarmActivity::class.java))
-                true
-            }
-            R.id.action_channel_settings -> {
-                startActivity(Intent(this, ChannelActivity::class.java))
-                true
-            }
-            R.id.action_select_channel -> {
-                showChannelSelectionDialog()
-                true
-            }
-            R.id.action_language_settings -> {
-                startActivity(Intent(this, LanguageActivity::class.java))
                 true
             }
             R.id.action_about -> {
@@ -471,7 +462,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun updateHistoricalMarkers() {
         markerToTrackPointMap.forEach { (marker, trackPoint) ->
             val belongingToCurrentChannel = historicalData[currentChannel]?.contains(trackPoint) == true
-            marker.isVisible = binding.trackSwitch.isChecked && belongingToCurrentChannel
+            marker.isVisible = belongingToCurrentChannel
         }
     }
 
@@ -507,6 +498,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         // Use aggregated data for display and history to ensure we have all fields
         val aggregatedData = GlobalData.currentData
+
+        // Update UI even if no GPS fix yet (show Compass/Clino data)
+        if (currentChannel == LOCAL_CHANNEL_ID) {
+            updateUI(
+                aggregatedData.latitude?.toString() ?: "0",
+                aggregatedData.longitude?.toString() ?: "0",
+                aggregatedData.speed?.toString() ?: "0",
+                aggregatedData.heading?.toString() ?: "0",
+                aggregatedData.pitch?.toString() ?: "0",
+                aggregatedData.roll?.toString() ?: "0"
+            )
+        }
 
         if (aggregatedData.latitude != null && aggregatedData.longitude != null) {
             val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
@@ -550,35 +553,24 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             // Add to history
             historicalData[LOCAL_CHANNEL_ID]?.add(trackPoint)
 
-            // Update UI
+            // Update Track Polyline and Markers
             if (currentChannel == LOCAL_CHANNEL_ID) {
-                updateUI(
-                    trackPoint.lat.toString(),
-                    trackPoint.lon.toString(),
-                    trackPoint.speed,
-                    trackPoint.heading,
-                    trackPoint.pitch,
-                    trackPoint.roll
-                )
-
                 // Update Track Polyline
                 val points = historicalData[LOCAL_CHANNEL_ID]?.map { it.getPosition() } ?: emptyList()
                 trackPolylines[LOCAL_CHANNEL_ID]?.points = points
 
                 // Add marker (if we want markers for every point? Usually just track is enough, markers are heavy)
                 // Existing code adds marker for every point.
-                // We'll add it if switch is on.
-                if (binding.trackSwitch.isChecked) {
-                     val historicalMarker = map.addMarker(
-                        MarkerOptions()
-                            .position(trackPoint.getPosition())
-                            .icon(BitmapDescriptorFactory.fromBitmap(getBitmap(R.drawable.ic_historical_marker, 0xFF00FF00.toInt())!!)) // Green
-                            .anchor(0.5f, 0.5f)
-                    )
-                    if (historicalMarker != null) {
-                        markerToTrackPointMap[historicalMarker] = trackPoint
-                        historicalMarkers.add(historicalMarker)
-                    }
+                // Always add marker now that switch is gone
+                 val historicalMarker = map.addMarker(
+                    MarkerOptions()
+                        .position(trackPoint.getPosition())
+                        .icon(BitmapDescriptorFactory.fromBitmap(getBitmap(R.drawable.ic_historical_marker, 0xFF00FF00.toInt())!!)) // Green
+                        .anchor(0.5f, 0.5f)
+                )
+                if (historicalMarker != null) {
+                    markerToTrackPointMap[historicalMarker] = trackPoint
+                    historicalMarkers.add(historicalMarker)
                 }
 
                 // Move Boat Marker
