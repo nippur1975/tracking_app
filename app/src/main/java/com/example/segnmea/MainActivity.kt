@@ -63,6 +63,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     // Local Data
     private val LOCAL_CHANNEL_ID = "local_bluetooth"
     private var currentDay = ""
+    private var lastBluetoothDataTime = System.currentTimeMillis()
+    private var isBluetoothConnected = false
 
     // Watchdog logic (UI only now)
     private val WATCHDOG_INTERVAL = 1000L
@@ -513,6 +515,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun onGlobalDataUpdated(aggregatedData: NmeaData) {
         // UI logic derived from GlobalData updates (pushed by Service)
+        lastBluetoothDataTime = System.currentTimeMillis()
+        isBluetoothConnected = true
 
         // Update UI even if no GPS fix yet (show Compass/Clino data)
         if (currentChannel == LOCAL_CHANNEL_ID) {
