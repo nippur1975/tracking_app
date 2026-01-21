@@ -60,19 +60,20 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private var currentChannel = "3002133"
     private var channelName = "Vessel"
 
-    // Bluetooth & Local Data
-    private lateinit var bluetoothManager: BluetoothManager
-    private val nmeaParser = NmeaParser()
-    private var isBluetoothConnected = false
+    // Local Data
     private val LOCAL_CHANNEL_ID = "local_bluetooth"
-    private var lastUploadTime = 0L
-    private val UPLOAD_INTERVAL = 15000L
     private var currentDay = ""
 
-    // Watchdog
-    private var lastBluetoothDataTime = 0L
+    // Watchdog logic (UI only now)
     private val WATCHDOG_INTERVAL = 1000L
     private val BLUETOOTH_TIMEOUT = 3000L
+
+    // UI Data Listener
+    private val dataListener: (NmeaData) -> Unit = { data ->
+        runOnUiThread {
+            onGlobalDataUpdated(data)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -84,21 +85,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         currentChannel = sharedPreferences.getString("current_channel", "3002133") ?: "3002133"
         channelName = sharedPreferences.getString("current_channel_name", "Vessel") ?: "Vessel"
 
-        bluetoothManager = BluetoothManager(this,
-            onDataReceived = { data -> onBluetoothDataReceived(data) },
-            onStatusChange = { status ->
-                Toast.makeText(this, status, Toast.LENGTH_SHORT).show()
-                if (status == "Connected") {
-                    isBluetoothConnected = true
-                    switchToLocalChannel()
-                } else if (status == "Disconnected" || status == "Connection Failed") {
-                    isBluetoothConnected = false
-                }
-            }
-        )
-
         // IMPORTANT: Replace "YOUR_MAP_ID" with your actual Map ID if using Cloud Styling
-        // val mapOptions = GoogleMapOptions().mapId("YOUR_MAP_ID")
         val mapFragment = SupportMapFragment.newInstance()
         supportFragmentManager.beginTransaction()
             .replace(R.id.map, mapFragment)
@@ -135,19 +122,59 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
 
-        checkPermissions()
         startWatchdog()
-
-        // Auto-connect to paired device if name matches SC50_FURUNO
-        autoConnectToFuruno()
+        checkPermissionsAndStartService()
     }
 
-    private fun autoConnectToFuruno() {
-        val pairedDevices = bluetoothManager.getPairedDevices()
-        val targetDevice = pairedDevices.find { it.name == "SC50_FURUNO" }
-        if (targetDevice != null) {
-            Toast.makeText(this, "Auto-connecting to ${targetDevice.name}", Toast.LENGTH_SHORT).show()
-            bluetoothManager.connect(targetDevice.address)
+    private fun checkPermissionsAndStartService() {
+        val permissions = mutableListOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions.add(Manifest.permission.BLUETOOTH_SCAN)
+            permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+        } else {
+            permissions.add(Manifest.permission.BLUETOOTH)
+            permissions.add(Manifest.permission.BLUETOOTH_ADMIN)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        val permissionsToRequest = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (permissionsToRequest.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), 1001)
+        } else {
+            // All permissions granted
+            startThingSpeakService()
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1001) {
+            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                startThingSpeakService()
+            } else {
+                Toast.makeText(this, "Permissions required for Bluetooth service", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    // Removed old checkPermissions
+
+    private fun startThingSpeakService() {
+        val intent = Intent(this, ThingSpeakForegroundService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
         }
     }
 
@@ -321,7 +348,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_connect_bluetooth -> {
-                showBluetoothDeviceSelection()
+                // showBluetoothDeviceSelection() // Disabled as Service handles BT
+                Toast.makeText(this, "Bluetooth Managed by Service", Toast.LENGTH_SHORT).show()
                 true
             }
             R.id.action_about -> {
@@ -340,7 +368,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onDestroy() {
         super.onDestroy()
         stopWatchdog()
-        bluetoothManager.disconnect()
     }
 
     private fun showChannelSelectionDialog() {
@@ -468,36 +495,20 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     // --- Bluetooth & Data Handling ---
 
-    private fun showBluetoothDeviceSelection() {
-        val pairedDevices = bluetoothManager.getPairedDevices()
-        val deviceList = pairedDevices.toList()
-        val deviceNames = deviceList.map { "${it.name} (${it.address})" }.toTypedArray()
+    // Bluetooth is now managed by ThingSpeakForegroundService
 
-        if (deviceNames.isEmpty()) {
-            Toast.makeText(this, "No paired devices found", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("Select Bluetooth Device")
-            .setItems(deviceNames) { _, which ->
-                val device = deviceList[which]
-                bluetoothManager.connect(device.address)
-            }
-            .show()
+    override fun onResume() {
+        super.onResume()
+        GlobalData.addListener(dataListener)
     }
 
-    private fun onBluetoothDataReceived(line: String) {
-        lastBluetoothDataTime = System.currentTimeMillis()
+    override fun onPause() {
+        super.onPause()
+        GlobalData.removeListener(dataListener)
+    }
 
-        // Parse NMEA
-        val data = nmeaParser.parse(line)
-
-        // Update Global Data for Compass/Clinometer
-        GlobalData.update(data)
-
-        // Use aggregated data for display and history to ensure we have all fields
-        val aggregatedData = GlobalData.currentData
+    private fun onGlobalDataUpdated(aggregatedData: NmeaData) {
+        // UI logic derived from GlobalData updates (pushed by Service)
 
         // Update UI even if no GPS fix yet (show Compass/Clino data)
         if (currentChannel == LOCAL_CHANNEL_ID) {
@@ -522,20 +533,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 // Clear markers
                  val markersToRemove = mutableListOf<Marker>()
                 markerToTrackPointMap.forEach { (marker, trackPoint) ->
-                    // This is inefficient if we have many channels, but safe
                      if (historicalData[LOCAL_CHANNEL_ID]?.contains(trackPoint) == false) {
-                         // Only remove if it was part of the local track?
-                         // For simplicity, we just clear everything related to local channel logic if we tracked markers by channel...
-                         // Actually `historicalData` is map<Channel, List>.
+                         // Only remove if it was part of the local track
                     }
                 }
-                // Better: Iterate markers and see if they map to a point in the cleared list?
-                // For now, let's just clear the points list. The marker cleanup happens in `updateHistoricalMarkers` or refresh loop,
-                // but since we are pushing updates here, we should manage it.
-                // To keep it simple: clear the list, then rebuild markers or let the loop handle it?
-                // But loop is for API.
-
-                // Let's just clear the list.
                 historicalData[LOCAL_CHANNEL_ID] = mutableListOf()
                 currentDay = today
             }
@@ -550,7 +551,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 timestamp
             )
 
-            // Add to history
+            // Avoid adding duplicates too frequently? Or just add.
+            // For now, simple add.
             historicalData[LOCAL_CHANNEL_ID]?.add(trackPoint)
 
             // Update Track Polyline and Markers
@@ -559,13 +561,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 val points = historicalData[LOCAL_CHANNEL_ID]?.map { it.getPosition() } ?: emptyList()
                 trackPolylines[LOCAL_CHANNEL_ID]?.points = points
 
-                // Add marker (if we want markers for every point? Usually just track is enough, markers are heavy)
-                // Existing code adds marker for every point.
-                // Always add marker now that switch is gone
+                // Add marker
                  val historicalMarker = map.addMarker(
                     MarkerOptions()
                         .position(trackPoint.getPosition())
-                        .icon(BitmapDescriptorFactory.fromBitmap(getBitmap(R.drawable.ic_historical_marker, 0xFF00FF00.toInt())!!)) // Green
+                        .icon(BitmapDescriptorFactory.fromBitmap(getBitmap(R.drawable.ic_historical_marker, 0xFF00FF00.toInt())!!))
                         .anchor(0.5f, 0.5f)
                 )
                 if (historicalMarker != null) {
@@ -599,44 +599,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     boatMarker.setIcon(BitmapDescriptorFactory.fromBitmap(bitmap!!))
                 }
             }
-
-            // Upload to ThingSpeak
-            val now = System.currentTimeMillis()
-            if (now - lastUploadTime > UPLOAD_INTERVAL) {
-                uploadToThingSpeak(data)
-                lastUploadTime = now
-            }
         }
-    }
-
-    private fun uploadToThingSpeak(data: NmeaData) {
-        val sharedPreferences = getSharedPreferences("Settings", Context.MODE_PRIVATE)
-        val writeApiKey = sharedPreferences.getString("write_api_key", "")
-
-        if (writeApiKey.isNullOrEmpty()) return
-
-        val url = "https://api.thingspeak.com/update"
-
-        val request = object : StringRequest(Request.Method.POST, url,
-            { response ->
-                // Log.d("ThingSpeak", "Success: $response")
-            },
-            { error ->
-                // Log.e("ThingSpeak", "Error: ${error.message}")
-            }
-        ) {
-            override fun getParams(): Map<String, String> {
-                val params = HashMap<String, String>()
-                params["api_key"] = writeApiKey
-                params["field1"] = data.pitch?.toString() ?: "0"
-                params["field2"] = data.roll?.toString() ?: "0"
-                params["field3"] = data.latitude?.toString() ?: "0"
-                params["field4"] = data.longitude?.toString() ?: "0"
-                params["field5"] = data.speed?.toString() ?: "0"
-                params["field6"] = data.heading?.toString() ?: "0"
-                return params
-            }
-        }
-        VolleySingleton.getInstance(this).addToRequestQueue(request)
     }
 }
