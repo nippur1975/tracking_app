@@ -332,6 +332,29 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return bitmap
     }
 
+    private fun createOwnShipBitmap(heading: Float): Bitmap {
+        val size = 120
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+        // Triángulo
+        paint.color = Color.RED
+        val path = Path()
+        path.moveTo(size / 2f, 40f)
+        path.lineTo(size / 2f - 20, 80f)
+        path.lineTo(size / 2f + 20, 80f)
+        path.close()
+
+        canvas.save()
+        canvas.rotate(heading, size / 2f, 60f) // Pivot around center of triangle roughly
+        canvas.drawPath(path, paint)
+        canvas.restore()
+
+        return bitmap
+    }
+
     private fun createAisMarkerBitmap(
         context: Context,
         shipName: String,
@@ -345,8 +368,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
         // Texto
-        paint.color = Color.WHITE
-        paint.textSize = 24f
+        paint.color = Color.RED
+        paint.textSize = 48f
         paint.typeface = Typeface.DEFAULT_BOLD
         paint.textAlign = Paint.Align.CENTER
 
@@ -649,25 +672,25 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 // Move Boat Marker
                 val boatMarker = boatMarkers[LOCAL_CHANNEL_ID]
                 val rotation = trackPoint.heading.toFloatOrNull() ?: 0f
-                val redTriangleBitmap = getBitmap(R.drawable.ic_triangle_red, 0xFFFF0000.toInt()) // Ensure using red triangle
+                val redTriangleBitmap = createOwnShipBitmap(rotation) // Ensure using red triangle same size as AIS
 
                 if (boatMarker == null) {
                      val newBoatMarker = map.addMarker(
                         MarkerOptions()
                             .position(trackPoint.getPosition())
-                            .icon(BitmapDescriptorFactory.fromBitmap(redTriangleBitmap!!))
-                            .rotation(rotation)
+                            .icon(BitmapDescriptorFactory.fromBitmap(redTriangleBitmap))
+                            // .rotation(rotation) // Rotation baked into bitmap now
                             .anchor(0.5f, 0.5f)
                     )
                     if (newBoatMarker != null) {
                         newBoatMarker.tag = redTriangleBitmap
                         boatMarkers[LOCAL_CHANNEL_ID] = newBoatMarker
                     }
-                    map.animateCamera(CameraUpdateFactory.newLatLng(trackPoint.getPosition()))
+                    map.animateCamera(CameraUpdateFactory.newLatLngZoom(trackPoint.getPosition(), 15f))
                 } else {
                     boatMarker.position = trackPoint.getPosition()
-                    boatMarker.rotation = rotation
-                    boatMarker.setIcon(BitmapDescriptorFactory.fromBitmap(redTriangleBitmap!!))
+                    // boatMarker.rotation = rotation // Rotation baked into bitmap now
+                    boatMarker.setIcon(BitmapDescriptorFactory.fromBitmap(redTriangleBitmap))
                 }
             }
         }
