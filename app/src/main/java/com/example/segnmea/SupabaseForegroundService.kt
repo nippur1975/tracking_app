@@ -107,22 +107,28 @@ class SupabaseForegroundService : Service() {
         // Construct Endpoint
         // https://<project>.supabase.co/rest/v1/<table>
         val fullUrl = "$urlBase/rest/v1/$table"
+        val sharedPreferences = getSharedPreferences("Settings", Context.MODE_PRIVATE)
+        val shipId = sharedPreferences.getString("ship_id", "LalitoTX") ?: "LalitoTX"
+
+        // Exact schema requested:
+        // ship_id, date_event, lat, lon, rumbo, velocidad, pitch, roll, rot
 
         val json = JSONObject()
-        json.put("latitude", data.latitude ?: 0.0)
-        json.put("longitude", data.longitude ?: 0.0)
-        json.put("heading", data.heading ?: 0.0)
-        json.put("speed", data.speed ?: 0.0)
+        json.put("ship_id", shipId)
+
+        // Use NMEA timestamp if available, else current time in ISO 8601 format
+        val timestamp = data.timestamp ?: java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).apply {
+            timeZone = java.util.TimeZone.getTimeZone("UTC")
+        }.format(java.util.Date())
+
+        json.put("date_event", timestamp)
+        json.put("lat", data.latitude ?: 0.0)
+        json.put("lon", data.longitude ?: 0.0)
+        json.put("rumbo", data.heading ?: 0.0)
+        json.put("velocidad", data.speed ?: 0.0)
         json.put("pitch", data.pitch ?: 0.0)
         json.put("roll", data.roll ?: 0.0)
         json.put("rot", data.rot ?: 0.0)
-
-        // Optional: timestamp provided by device or server time.
-        // Supabase usually handles 'created_at' automatically if configured.
-        // If we want to send the NMEA timestamp:
-        if (data.timestamp != null) {
-             json.put("nmea_timestamp", data.timestamp)
-        }
 
         try {
             val url = URL(fullUrl)
