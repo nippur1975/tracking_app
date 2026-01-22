@@ -94,6 +94,9 @@ class SupabaseForegroundService : Service() {
             val target = aisParser.parse(line)
             if (target != null) {
                 GlobalData.updateAis(target)
+                scope.launch {
+                    sendAisToSupabase(target)
+                }
             }
         } else {
             val data = nmeaParser.parse(line)
@@ -118,7 +121,7 @@ class SupabaseForegroundService : Service() {
         val sharedPreferences = getSharedPreferences("Settings", Context.MODE_PRIVATE)
         val shipId = sharedPreferences.getString("ship_id", "LalitoTX") ?: "LalitoTX"
 
-        // Exact schema requested:
+        // Exact schema requested for own ship:
         // ship_id, date_event, lat, lon, rumbo, velocidad, pitch, roll, rot
 
         val json = JSONObject()
@@ -138,18 +141,57 @@ class SupabaseForegroundService : Service() {
         json.put("roll", data.roll ?: 0.0)
         json.put("rot", data.rot ?: 0.0)
 
+        postJson(fullUrl, key, json)
+    }
+
+    private fun sendAisToSupabase(target: AisTarget) {
+        // Config for AIS table
+        val sharedPreferences = getSharedPreferences("Settings", Context.MODE_PRIVATE)
+        val supabaseUrl = sharedPreferences.getString("supabase_url", "https://lnxziegzyilfnibmfrtz.supabase.co") ?: ""
+        val supabaseKey = sharedPreferences.getString("supabase_key", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxueHppZWd6eWlsZm5pYm1mcnR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwMjI1OTQsImV4cCI6MjA4NDU5ODU5NH0.ltom27lQCmTyI-3NfPW6tMWpEMOL6fXh2dc8ksx0DsQ") ?: ""
+        val shipId = sharedPreferences.getString("ship_id", "LalitoTX") ?: "LalitoTX"
+        val aisTable = "ais_live" // Fixed table name as per requirement
+
+        if (supabaseUrl.isEmpty() || supabaseKey.isEmpty()) return
+
+        val fullUrl = "$supabaseUrl/rest/v1/$aisTable"
+
+        // Schema: mmsi, lat, lon, sog, cog, heading, rot, ship_name, source_id, last_seen (auto?)
+        // We will send what we have.
+        val json = JSONObject()
+        json.put("mmsi", target.mmsi)
+        if (target.latitude != null) json.put("lat", target.latitude)
+        if (target.longitude != null) json.put("lon", target.longitude)
+        if (target.speed != null) json.put("sog", target.speed)
+        if (target.course != null) json.put("cog", target.course)
+        if (target.heading != null) json.put("heading", target.heading)
+        if (target.rot != null) json.put("rot", target.rot)
+        if (target.name != null) json.put("ship_name", target.name)
+        json.put("source_id", shipId)
+
+        // For UPSERT to work on MMSI primary key, we need specific header
+        // Header "Prefer: resolution=merge-duplicates"
+
+        postJson(fullUrl, supabaseKey, json, true)
+    }
+
+    private fun postJson(urlStr: String, key: String, json: JSONObject, isUpsert: Boolean = false) {
         try {
-            val url = URL(fullUrl)
+            val url = URL(urlStr)
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
-            conn.connectTimeout = 10_000
-            conn.readTimeout = 10_000
+            conn.connectTimeout = 5000
+            conn.readTimeout = 5000
 
             // Supabase Headers
             conn.setRequestProperty("apikey", key)
             conn.setRequestProperty("Authorization", "Bearer $key")
             conn.setRequestProperty("Content-Type", "application/json")
-            conn.setRequestProperty("Prefer", "return=minimal")
+            if (isUpsert) {
+                conn.setRequestProperty("Prefer", "resolution=merge-duplicates")
+            } else {
+                conn.setRequestProperty("Prefer", "return=minimal")
+            }
 
             conn.doOutput = true
             conn.outputStream.use { os ->
@@ -159,7 +201,7 @@ class SupabaseForegroundService : Service() {
 
             val responseCode = conn.responseCode
             if (responseCode !in 200..299) {
-                Log.e("SupabaseService", "Error sending data: $responseCode")
+                Log.e("SupabaseService", "Error sending data to $urlStr: $responseCode")
             }
             conn.disconnect()
         } catch (e: Exception) {

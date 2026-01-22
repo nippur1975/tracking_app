@@ -8,6 +8,7 @@ data class AisTarget(
     var heading: Int? = null,
     var speed: Double? = null,
     var course: Double? = null,
+    var rot: Float? = null,
     var timestamp: Long = System.currentTimeMillis()
 )
 
@@ -67,7 +68,17 @@ class AisParser {
                 1, 2, 3 -> { // Position Report Class A
                     if (bits.length >= 137) {
                         // Nav Status (38, 4)
-                        // ROT (42, 8)
+                        var rotRaw = bits.substring(42, 50).toInt(2)
+                        if (rotRaw > 127) rotRaw -= 256 // Signed 8-bit
+
+                        val rot = if (rotRaw == -128) null else {
+                            // Standard AIS ROT formula or just raw?
+                            // Formula: ROT = 4.733 * sign(rotRaw) * sqrt(|rotRaw|)
+                            // For simplicity/display, passing raw or simple conversion is often enough.
+                            // Let's pass the raw signed value roughly mapping to deg/min
+                            rotRaw.toFloat()
+                        }
+
                         val sog = bits.substring(50, 60).toInt(2) / 10.0
                         val lonRaw = bits.substring(61, 89).toLong(2)
                         val latRaw = bits.substring(89, 116).toLong(2)
@@ -77,6 +88,7 @@ class AisParser {
                         target.speed = sog
                         target.course = cog
                         target.heading = if (hdg == 511) null else hdg
+                        target.rot = rot
                         target.longitude = decodeCoordinate(lonRaw, 28)
                         target.latitude = decodeCoordinate(latRaw, 27)
 
