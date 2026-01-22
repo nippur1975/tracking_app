@@ -81,13 +81,31 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    private val aisListener: (Map<Int, AisTarget>) -> Unit = { targets ->
-        runOnUiThread {
-            updateAisMarkers(targets)
+    // UI Update Throttling
+    private val uiUpdateHandler = Handler(Looper.getMainLooper())
+    private val uiUpdateRunnable = object : Runnable {
+        override fun run() {
+            updateAisMarkers(GlobalData.aisTargets)
+            uiUpdateHandler.postDelayed(this, 1000) // Update every 1 second
         }
     }
 
     private val aisMarkers = mutableMapOf<Int, Marker>()
+
+    // Icon Caching
+    data class IconKey(val name: String, val bucket: Int)
+    private val iconCache = HashMap<IconKey, BitmapDescriptor>()
+
+    private fun getIcon(name: String, heading: Float): BitmapDescriptor {
+        val bucket = (((heading % 360) + 360) % 360 / 10).toInt() * 10  // 0,10,20...
+        val key = IconKey(name, bucket)
+
+        return iconCache.getOrPut(key) {
+            BitmapDescriptorFactory.fromBitmap(
+                createAisMarkerBitmap(this, name, bucket.toFloat())
+            )
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -514,17 +532,22 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onResume() {
         super.onResume()
         GlobalData.addListener(dataListener)
-        GlobalData.addAisListener(aisListener)
+        // Start polling for AIS updates
+        uiUpdateHandler.post(uiUpdateRunnable)
     }
 
     override fun onPause() {
         super.onPause()
         GlobalData.removeListener(dataListener)
-        GlobalData.removeAisListener(aisListener)
+        // Stop polling
+        uiUpdateHandler.removeCallbacks(uiUpdateRunnable)
     }
 
     private fun updateAisMarkers(targets: Map<Int, AisTarget>) {
-        targets.forEach { (mmsi, target) ->
+        // Use synchronized copy to avoid ConcurrentModificationException if service writes at same time
+        val targetsCopy = synchronized(GlobalData) { HashMap(targets) }
+
+        targetsCopy.forEach { (mmsi, target) ->
             val lat = target.latitude
             val lon = target.longitude
 
@@ -535,24 +558,31 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
                 val marker = aisMarkers[mmsi]
                 if (marker == null) {
-                    val bitmap = createAisMarkerBitmap(this, name, heading)
+                    // Create new marker
+                    val icon = getIcon(name, heading)
                     val newMarker = map.addMarker(
                         MarkerOptions()
                             .position(position)
                             .title(name)
-                            .icon(BitmapDescriptorFactory.fromBitmap(bitmap))
-                            .anchor(0.5f, 0.7f) // Pivot near bottom of text/top of triangle? No, triangle is at bottom. 0.5, 0.7 seems reasonable for "center of triangle".
+                            .icon(icon)
+                            .anchor(0.5f, 0.7f)
                     )
                     if (newMarker != null) {
                         newMarker.tag = mmsi // Store MMSI in tag
                         aisMarkers[mmsi] = newMarker
                     }
                 } else {
+                    // Update existing marker
                     marker.position = position
-                    // Update icon to reflect new heading or name
-                    val bitmap = createAisMarkerBitmap(this, name, heading)
-                    marker.setIcon(BitmapDescriptorFactory.fromBitmap(bitmap))
-                    marker.title = name
+                    marker.title = name // Update title in case name was resolved later
+                    // Only update icon if bucket changed (optimization handled by getIcon cache lookup,
+                    // but setIcon is expensive so maybe check previous heading?
+                    // For now, getIcon is fast, setIcon is the IPC cost.
+                    // Optimization: We could store lastHeading in tag or a wrapper map.
+                    // But getIcon is cached, so creating the descriptor is fast.
+                    // Let's rely on setIcon being relatively optimized by Maps SDK if descriptor object is same reference?
+                    // Actually, let's just set it. The throttling to 1s helps the most.
+                    marker.setIcon(getIcon(name, heading))
                 }
             }
         }
