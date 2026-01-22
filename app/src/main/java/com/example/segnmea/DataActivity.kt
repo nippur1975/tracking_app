@@ -78,7 +78,10 @@ class DataActivity : AppCompatActivity() {
         val heading = data.heading?.toFloat() ?: 0f
         val rot = data.rot?.toFloat() ?: 0f
 
-        binding.channelNameTextView.text = "My Boat (Bluetooth)"
+        val sharedPreferences = getSharedPreferences("Settings", Context.MODE_PRIVATE)
+        val shipId = sharedPreferences.getString("ship_id", "LalitoTX") ?: "LalitoTX"
+
+        binding.channelNameTextView.text = shipId
         binding.pitchTextView.text = "%.1f°".format(pitch)
         binding.rollTextView.text = "%.1f°".format(roll)
         binding.latTextView.text = formatLat(lat)

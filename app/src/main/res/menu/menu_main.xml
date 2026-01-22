@@ -7,10 +7,6 @@
         android:title="@string/about_title"
         app:showAsAction="never" />
     <item
-        android:id="@+id/action_connect_bluetooth"
-        android:title="Connect Bluetooth"
-        app:showAsAction="never" />
-    <item
         android:id="@+id/action_settings"
         android:title="Service Settings"
         app:showAsAction="never" />

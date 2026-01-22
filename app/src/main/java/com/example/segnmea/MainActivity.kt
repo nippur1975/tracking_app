@@ -282,8 +282,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         val sharedPreferences = getSharedPreferences("Settings", Context.MODE_PRIVATE)
         val language = sharedPreferences.getString("language", "en") ?: "en"
+        val shipId = sharedPreferences.getString("ship_id", "LalitoTX") ?: "LalitoTX"
 
-        binding.channelNameTextView.text = channelName
+        binding.channelNameTextView.text = shipId
         binding.rotTextView.text = "ROT: ${rotValue.toInt()}"
 
         if (language == "es") {
@@ -404,26 +405,52 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            R.id.action_connect_bluetooth -> {
-                // showBluetoothDeviceSelection() // Disabled as Service handles BT
-                Toast.makeText(this, "Bluetooth Managed by Service", Toast.LENGTH_SHORT).show()
-                true
-            }
             R.id.action_settings -> {
-                startActivity(Intent(this, SettingsActivity::class.java))
+                showPasswordDialog()
                 true
             }
             R.id.action_about -> {
-                val aboutDialog = AlertDialog.Builder(this)
-                    .setTitle(getString(R.string.about_title))
-                    .setMessage(getString(R.string.about_message))
-                    .setPositiveButton("Aceptar", null)
-                    .create()
-                aboutDialog.show()
+                showAboutDialog()
                 true
             }
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    private fun showPasswordDialog() {
+        val input = android.widget.EditText(this)
+        input.inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        input.hint = "Password"
+
+        AlertDialog.Builder(this)
+            .setTitle("Service Settings")
+            .setMessage("Enter Password:")
+            .setView(input)
+            .setPositiveButton("OK") { _, _ ->
+                if (input.text.toString() == "29121975") {
+                    startActivity(Intent(this, SettingsActivity::class.java))
+                } else {
+                    Toast.makeText(this, "Incorrect Password", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showAboutDialog() {
+        val message = getString(R.string.about_message) + "\n\n\n" + "desarrollado por Hdelacruz"
+        val textView = android.widget.TextView(this)
+        textView.text = message
+        textView.gravity = android.view.Gravity.CENTER
+        textView.setPadding(32, 32, 32, 32)
+        textView.textSize = 16f
+        textView.setTextColor(android.graphics.Color.BLACK)
+
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.about_title))
+            .setView(textView)
+            .setPositiveButton("Aceptar", null)
+            .show()
     }
 
     override fun onDestroy() {

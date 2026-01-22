@@ -37,7 +37,10 @@ class ClinometerActivity : AppCompatActivity() {
 
         // Get the channel ID from the intent
         channel = intent.getStringExtra("channel_id") ?: "3002133"
-        binding.channelNameTextView.text = "My Boat (Bluetooth)"
+
+        val sharedPreferences = getSharedPreferences("Settings", Context.MODE_PRIVATE)
+        val shipId = sharedPreferences.getString("ship_id", "LalitoTX") ?: "LalitoTX"
+        binding.channelNameTextView.text = shipId
 
         // Set up the button click listeners
         binding.mainButton.setOnClickListener {
