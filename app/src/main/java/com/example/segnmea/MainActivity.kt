@@ -333,8 +333,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun createOwnShipBitmap(heading: Float): Bitmap {
-        val size = 120
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val width = 400
+        val height = 200
+        val centerX = width / 2f
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -342,13 +344,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         // Triángulo
         paint.color = Color.RED
         val path = Path()
-        path.moveTo(size / 2f, 40f)
-        path.lineTo(size / 2f - 20, 80f)
-        path.lineTo(size / 2f + 20, 80f)
+        // Triangle centered horizontally, lower half of bitmap
+        path.moveTo(centerX, 80f)
+        path.lineTo(centerX - 20, 120f)
+        path.lineTo(centerX + 20, 120f)
         path.close()
 
         canvas.save()
-        canvas.rotate(heading, size / 2f, 60f) // Pivot around center of triangle roughly
+        canvas.rotate(heading, centerX, 100f) // Pivot around center of triangle
         canvas.drawPath(path, paint)
         canvas.restore()
 
@@ -361,8 +364,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         heading: Float
     ): Bitmap {
 
-        val size = 120
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val width = 400
+        val height = 200
+        val centerX = width / 2f
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -374,18 +379,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         paint.textAlign = Paint.Align.CENTER
 
         // Nombre arriba
-        canvas.drawText(shipName, size / 2f, 28f, paint)
+        canvas.drawText(shipName, centerX, 60f, paint)
 
         // Triángulo
         paint.color = Color.BLUE
         val path = Path()
-        path.moveTo(size / 2f, 40f)
-        path.lineTo(size / 2f - 20, 80f)
-        path.lineTo(size / 2f + 20, 80f)
+        path.moveTo(centerX, 80f)
+        path.lineTo(centerX - 20, 120f)
+        path.lineTo(centerX + 20, 120f)
         path.close()
 
         canvas.save()
-        canvas.rotate(heading, size / 2f, 60f) // Pivot around center of triangle roughly
+        canvas.rotate(heading, centerX, 100f) // Pivot around center of triangle
         canvas.drawPath(path, paint)
         canvas.restore()
 
