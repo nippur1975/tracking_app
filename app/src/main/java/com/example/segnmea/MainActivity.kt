@@ -7,6 +7,10 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -309,6 +313,43 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return bitmap
     }
 
+    private fun createAisMarkerBitmap(
+        context: Context,
+        shipName: String,
+        heading: Float
+    ): Bitmap {
+
+        val size = 120
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+        // Texto
+        paint.color = Color.WHITE
+        paint.textSize = 24f
+        paint.typeface = Typeface.DEFAULT_BOLD
+        paint.textAlign = Paint.Align.CENTER
+
+        // Nombre arriba
+        canvas.drawText(shipName, size / 2f, 28f, paint)
+
+        // Triángulo
+        paint.color = Color.BLUE
+        val path = Path()
+        path.moveTo(size / 2f, 40f)
+        path.lineTo(size / 2f - 20, 80f)
+        path.lineTo(size / 2f + 20, 80f)
+        path.close()
+
+        canvas.save()
+        canvas.rotate(heading, size / 2f, 60f) // Pivot around center of triangle roughly
+        canvas.drawPath(path, paint)
+        canvas.restore()
+
+        return bitmap
+    }
+
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
         return true
@@ -489,19 +530,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
             if (lat != null && lon != null) {
                 val position = LatLng(lat, lon)
-                val rotation = (target.heading?.toFloat() ?: target.course?.toFloat() ?: 0f)
-                val title = target.name ?: "MMSI: $mmsi"
+                val heading = (target.heading?.toFloat() ?: target.course?.toFloat() ?: 0f)
+                val name = target.name ?: "MMSI: $mmsi"
 
                 val marker = aisMarkers[mmsi]
                 if (marker == null) {
-                    val aisIcon = getBitmap(R.drawable.ic_ais_target, 0xFF0000FF.toInt())
+                    val bitmap = createAisMarkerBitmap(this, name, heading)
                     val newMarker = map.addMarker(
                         MarkerOptions()
                             .position(position)
-                            .title(title)
-                            .rotation(rotation)
-                            .icon(BitmapDescriptorFactory.fromBitmap(aisIcon!!))
-                            .anchor(0.5f, 0.5f)
+                            .title(name)
+                            .icon(BitmapDescriptorFactory.fromBitmap(bitmap))
+                            .anchor(0.5f, 0.7f) // Pivot near bottom of text/top of triangle? No, triangle is at bottom. 0.5, 0.7 seems reasonable for "center of triangle".
                     )
                     if (newMarker != null) {
                         newMarker.tag = mmsi // Store MMSI in tag
@@ -509,8 +549,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     }
                 } else {
                     marker.position = position
-                    marker.rotation = rotation
-                    marker.title = title
+                    // Update icon to reflect new heading or name
+                    val bitmap = createAisMarkerBitmap(this, name, heading)
+                    marker.setIcon(BitmapDescriptorFactory.fromBitmap(bitmap))
+                    marker.title = name
                 }
             }
         }
