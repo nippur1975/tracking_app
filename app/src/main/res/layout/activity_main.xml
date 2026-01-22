@@ -110,6 +110,14 @@
             android:text="Ruler"
             android:textColor="#FFFFFF" />
 
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/showNamesSwitch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Show Names"
+            android:checked="true"
+            android:textColor="#FFFFFF" />
+
     </LinearLayout>
 
     <!-- ROT Bar Overlay at bottom of map, above buttons -->

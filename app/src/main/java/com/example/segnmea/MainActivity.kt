@@ -92,18 +92,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private val aisMarkers = mutableMapOf<Int, Marker>()
+    private var showAisNames = true
 
     // Icon Caching
-    data class IconKey(val name: String, val bucket: Int)
+    data class IconKey(val name: String, val bucket: Int, val showName: Boolean)
     private val iconCache = HashMap<IconKey, BitmapDescriptor>()
 
     private fun getIcon(name: String, heading: Float): BitmapDescriptor {
         val bucket = (((heading % 360) + 360) % 360 / 10).toInt() * 10  // 0,10,20...
-        val key = IconKey(name, bucket)
+        val key = IconKey(name, bucket, showAisNames)
 
         return iconCache.getOrPut(key) {
             BitmapDescriptorFactory.fromBitmap(
-                createAisMarkerBitmap(this, name, bucket.toFloat())
+                createAisMarkerBitmap(this, name, bucket.toFloat(), showAisNames)
             )
         }
     }
@@ -154,6 +155,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 map.setOnMapClickListener(null)
                 clearRuler()
             }
+        }
+
+        binding.showNamesSwitch.setOnCheckedChangeListener { _, isChecked ->
+            showAisNames = isChecked
+            // Force refresh of markers
+            updateAisMarkers(GlobalData.aisTargets)
         }
 
         startWatchdog()
@@ -362,7 +369,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun createAisMarkerBitmap(
         context: Context,
         shipName: String,
-        heading: Float
+        heading: Float,
+        showName: Boolean
     ): Bitmap {
 
         val width = 400
@@ -373,14 +381,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-        // Texto
-        paint.color = Color.RED
-        paint.textSize = 48f
-        paint.typeface = Typeface.DEFAULT_BOLD
-        paint.textAlign = Paint.Align.CENTER
+        if (showName) {
+            // Texto
+            paint.color = Color.RED
+            paint.textSize = 48f
+            paint.typeface = Typeface.DEFAULT_BOLD
+            paint.textAlign = Paint.Align.CENTER
 
-        // Nombre arriba
-        canvas.drawText(shipName, centerX, 60f, paint)
+            // Nombre arriba
+            canvas.drawText(shipName, centerX, 60f, paint)
+        }
 
         // Triángulo
         paint.color = Color.BLUE
@@ -733,10 +743,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             if (mmsi != null) {
                 val target = GlobalData.aisTargets[mmsi]
                 if (target != null) {
+                    val latFormatted = formatCoordinate(target.latitude.toString(), "N", "S")
+                    val lonFormatted = formatCoordinate(target.longitude.toString(), "E", "W")
+
                     val message = "Name: ${target.name ?: "Unknown"}\n" +
                                   "MMSI: ${target.mmsi}\n" +
-                                  "Lat: ${target.latitude}\n" +
-                                  "Lon: ${target.longitude}\n" +
+                                  "Lat: $latFormatted\n" +
+                                  "Lon: $lonFormatted\n" +
                                   "Speed: ${target.speed} kn\n" +
                                   "Heading: ${target.heading}°\n" +
                                   "Course: ${target.course}°"
