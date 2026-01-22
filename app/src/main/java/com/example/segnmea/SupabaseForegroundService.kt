@@ -25,6 +25,7 @@ class SupabaseForegroundService : Service() {
     // Bluetooth
     private lateinit var bluetoothManager: BluetoothManager
     private val nmeaParser = NmeaParser()
+    private val aisParser = AisParser()
     private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreate() {
@@ -89,8 +90,15 @@ class SupabaseForegroundService : Service() {
     }
 
     private fun onBluetoothDataReceived(line: String) {
-        val data = nmeaParser.parse(line)
-        GlobalData.update(data)
+        if (line.startsWith("!")) {
+            val target = aisParser.parse(line)
+            if (target != null) {
+                GlobalData.updateAis(target)
+            }
+        } else {
+            val data = nmeaParser.parse(line)
+            GlobalData.update(data)
+        }
     }
 
     override fun onDestroy() {

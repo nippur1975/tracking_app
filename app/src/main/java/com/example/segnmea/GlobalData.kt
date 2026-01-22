@@ -3,7 +3,36 @@ package com.example.segnmea
 object GlobalData {
     // Persistent state to hold the latest known values for all fields
     var currentData: NmeaData = NmeaData()
+    val aisTargets = mutableMapOf<Int, AisTarget>()
+
     private val listeners = mutableListOf<(NmeaData) -> Unit>()
+    private val aisListeners = mutableListOf<(Map<Int, AisTarget>) -> Unit>()
+
+    @Synchronized
+    fun updateAis(target: AisTarget) {
+        val existing = aisTargets[target.mmsi]
+        if (existing == null) {
+            aisTargets[target.mmsi] = target
+        } else {
+            // Merge fields
+            if (target.latitude != null) existing.latitude = target.latitude
+            if (target.longitude != null) existing.longitude = target.longitude
+            if (target.heading != null) existing.heading = target.heading
+            if (target.speed != null) existing.speed = target.speed
+            if (target.course != null) existing.course = target.course
+            if (target.name != null) existing.name = target.name
+            existing.timestamp = target.timestamp
+        }
+        aisListeners.forEach { it(aisTargets) }
+    }
+
+    fun addAisListener(listener: (Map<Int, AisTarget>) -> Unit) {
+        aisListeners.add(listener)
+    }
+
+    fun removeAisListener(listener: (Map<Int, AisTarget>) -> Unit) {
+        aisListeners.remove(listener)
+    }
 
     @Synchronized
     fun update(newData: NmeaData) {

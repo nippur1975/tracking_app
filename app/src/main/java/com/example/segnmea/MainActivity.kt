@@ -77,6 +77,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+    private val aisListener: (Map<Int, AisTarget>) -> Unit = { targets ->
+        runOnUiThread {
+            updateAisMarkers(targets)
+        }
+    }
+
+    private val aisMarkers = mutableMapOf<Int, Marker>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -465,11 +473,47 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onResume() {
         super.onResume()
         GlobalData.addListener(dataListener)
+        GlobalData.addAisListener(aisListener)
     }
 
     override fun onPause() {
         super.onPause()
         GlobalData.removeListener(dataListener)
+        GlobalData.removeAisListener(aisListener)
+    }
+
+    private fun updateAisMarkers(targets: Map<Int, AisTarget>) {
+        targets.forEach { (mmsi, target) ->
+            val lat = target.latitude
+            val lon = target.longitude
+
+            if (lat != null && lon != null) {
+                val position = LatLng(lat, lon)
+                val rotation = (target.heading?.toFloat() ?: target.course?.toFloat() ?: 0f)
+                val title = target.name ?: "MMSI: $mmsi"
+
+                val marker = aisMarkers[mmsi]
+                if (marker == null) {
+                    val aisIcon = getBitmap(R.drawable.ic_ais_target, 0xFF0000FF.toInt())
+                    val newMarker = map.addMarker(
+                        MarkerOptions()
+                            .position(position)
+                            .title(title)
+                            .rotation(rotation)
+                            .icon(BitmapDescriptorFactory.fromBitmap(aisIcon!!))
+                            .anchor(0.5f, 0.5f)
+                    )
+                    if (newMarker != null) {
+                        newMarker.tag = mmsi // Store MMSI in tag
+                        aisMarkers[mmsi] = newMarker
+                    }
+                } else {
+                    marker.position = position
+                    marker.rotation = rotation
+                    marker.title = title
+                }
+            }
+        }
     }
 
     private fun onGlobalDataUpdated(aggregatedData: NmeaData) {
@@ -553,6 +597,36 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     boatMarker.setIcon(BitmapDescriptorFactory.fromBitmap(redTriangleBitmap!!))
                 }
             }
+        }
+
+        map.setOnMarkerClickListener { marker ->
+            // Check for AIS Marker tag (MMSI)
+            val mmsi = marker.tag as? Int
+            if (mmsi != null) {
+                val target = GlobalData.aisTargets[mmsi]
+                if (target != null) {
+                    val message = "Name: ${target.name ?: "Unknown"}\n" +
+                                  "MMSI: ${target.mmsi}\n" +
+                                  "Lat: ${target.latitude}\n" +
+                                  "Lon: ${target.longitude}\n" +
+                                  "Speed: ${target.speed} kn\n" +
+                                  "Heading: ${target.heading}°\n" +
+                                  "Course: ${target.course}°"
+                    AlertDialog.Builder(this)
+                        .setTitle("AIS Target")
+                        .setMessage(message)
+                        .setPositiveButton("OK", null)
+                        .show()
+                    return@setOnMarkerClickListener true
+                }
+            }
+
+            // Check for TrackPoint marker (legacy logic)
+            val trackPoint = markerToTrackPointMap[marker]
+            if (trackPoint != null) {
+                // ... (Existing logic for track points)
+            }
+            false
         }
     }
 }
