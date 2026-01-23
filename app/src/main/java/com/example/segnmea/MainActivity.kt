@@ -93,6 +93,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     
     private val aisMarkers = mutableMapOf<Int, Marker>()
     private var showAisNames = true
+
+    // Remote Mode
+    private lateinit var supabaseReader: SupabaseReader
+    private val remoteShips = mapOf(
+        "Barco 1" to "ship_1",
+        "Barco 2" to "ship_2",
+        "Barco 3" to "ship_3",
+        "Barco 4" to "ship_4",
+        "Barco 5" to "ship_5",
+        "Barco 6" to "ship_6"
+    )
+    private val remotePollingHandler = Handler(Looper.getMainLooper())
+    private var remotePollingRunnable: Runnable? = null
     
     // Icon Caching
     data class IconKey(val name: String, val bucket: Int, val showName: Boolean)
@@ -115,10 +128,17 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         setContentView(binding.root)
         title = getString(R.string.app_name)
 
+        supabaseReader = SupabaseReader(this)
+
         val sharedPreferences = getSharedPreferences("Settings", Context.MODE_PRIVATE)
         // Default to local_bluetooth if not set
         currentChannel = sharedPreferences.getString("current_channel", LOCAL_CHANNEL_ID) ?: LOCAL_CHANNEL_ID
         channelName = sharedPreferences.getString("current_channel_name", "My Boat (Bluetooth)") ?: "My Boat (Bluetooth)"
+
+        // Check if we started in a remote channel
+        if (currentChannel != LOCAL_CHANNEL_ID && remoteShips.containsValue(currentChannel)) {
+             startRemotePolling(currentChannel)
+        }
 
         // IMPORTANT: Replace "YOUR_MAP_ID" with your actual Map ID if using Cloud Styling
         val mapFragment = SupportMapFragment.newInstance()
@@ -471,36 +491,47 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun showChannelSelectionDialog() {
         val sharedPreferences = getSharedPreferences("Settings", Context.MODE_PRIVATE)
         val channels = mutableListOf<String>()
+        val channelDisplayNames = mutableListOf<String>()
+
+        // 1. Bluetooth Local
+        channels.add(LOCAL_CHANNEL_ID)
+        channelDisplayNames.add("Bluetooth Local")
+
+        // 2. Custom Channels (from Settings)
         for (i in 1..8) {
             val channel = sharedPreferences.getString("channel$i", "")
             if (channel?.isNotEmpty() == true) {
                 channels.add(channel)
+                val idx = i
+                channelDisplayNames.add(sharedPreferences.getString("channel_name_$idx", "Canal $idx") ?: "Canal $idx")
             }
         }
-        
-        // Add Local option if connected
-        if (isBluetoothConnected) {
-            channels.add(0, LOCAL_CHANNEL_ID)
+
+        // 3. Remote Ships (Fixed List)
+        remoteShips.forEach { (name, id) ->
+            channels.add(id)
+            channelDisplayNames.add(name)
         }
 
         val builder = AlertDialog.Builder(this)
-        builder.setTitle("Seleccionar Canal")
+        builder.setTitle("Seleccionar Barco")
         
-        val channelNames = channels.map { 
-            if (it == LOCAL_CHANNEL_ID) "Bluetooth Local" else sharedPreferences.getString("channel_name_$it", "Canal ${channels.indexOf(it) + 1}") 
-        }
-        
-        builder.setSingleChoiceItems(channelNames.toTypedArray(), channels.indexOf(currentChannel).coerceAtLeast(0)) { dialog, which ->
+        // Find current index
+        var currentIndex = channels.indexOf(currentChannel)
+        if (currentIndex == -1) currentIndex = 0
+
+        builder.setSingleChoiceItems(channelDisplayNames.toTypedArray(), currentIndex) { dialog, which ->
             val selectedChannel = channels[which]
-            
+            val selectedName = channelDisplayNames[which]
+
+            stopRemotePolling()
+
             if (selectedChannel == LOCAL_CHANNEL_ID) {
                 switchToLocalChannel()
             } else {
                 currentChannel = selectedChannel
-                channelName = channelNames[which] ?: "Canal ${which + 1}"
-                isBluetoothConnected = false // Assume user wants to view remote, but connection might stay alive.
-                // If we want to fully disconnect: bluetoothManager.disconnect()
-                // But usually we just change view.
+                channelName = selectedName
+                isBluetoothConnected = false
                 
                 val editor = sharedPreferences.edit()
                 editor.putString("current_channel", currentChannel)
@@ -509,9 +540,15 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 
                 updateHistoricalMarkers()
                 
-                val boatMarker = boatMarkers[currentChannel]
-                if (boatMarker != null) {
-                    map.animateCamera(CameraUpdateFactory.newLatLngZoom(boatMarker.position, 15f))
+                // If it is a remote ship, start polling
+                if (remoteShips.containsValue(selectedChannel)) {
+                    startRemotePolling(selectedChannel)
+                } else {
+                    // It's a custom channel (maybe legacy), try to center if exists
+                     val boatMarker = boatMarkers[currentChannel]
+                    if (boatMarker != null) {
+                        map.animateCamera(CameraUpdateFactory.newLatLngZoom(boatMarker.position, 15f))
+                    }
                 }
             }
             dialog.dismiss()
@@ -519,8 +556,100 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         builder.setNegativeButton("Cancelar", null)
         builder.create().show()
     }
+
+    private fun startRemotePolling(shipId: String) {
+        // Stop any existing
+        stopRemotePolling()
+
+        remotePollingRunnable = object : Runnable {
+            override fun run() {
+                // Fetch Ship Data
+                supabaseReader.fetchShipData(shipId) { data ->
+                    // Check for stale callback
+                    if (currentChannel != shipId) return@fetchShipData
+
+                    if (data != null) {
+                        runOnUiThread {
+                            if (currentChannel == shipId) {
+                                updateRemoteUI(data, shipId)
+                            }
+                        }
+                    }
+                }
+
+                // Fetch AIS Data
+                supabaseReader.fetchAisData { targets ->
+                    // Check for stale callback
+                    if (currentChannel != shipId) return@fetchAisData
+
+                    runOnUiThread {
+                        if (currentChannel == shipId) {
+                            val mapTargets = targets.associateBy { it.mmsi }
+                            updateAisMarkers(mapTargets)
+                            // Push to GlobalData so other activities (Data/Compass) see it
+                            targets.forEach { GlobalData.updateAis(it) }
+                        }
+                    }
+                }
+
+                remotePollingHandler.postDelayed(this, 3000) // Poll every 3 seconds
+            }
+        }
+        remotePollingHandler.post(remotePollingRunnable!!)
+    }
+
+    private fun stopRemotePolling() {
+        remotePollingRunnable?.let { remotePollingHandler.removeCallbacks(it) }
+        remotePollingRunnable = null
+    }
+
+    private fun updateRemoteUI(data: NmeaData, shipId: String) {
+        // Prevent watchdog from showing "No Signal"
+        lastBluetoothDataTime = System.currentTimeMillis()
+
+        // Push to GlobalData so Compass/Data activities work
+        GlobalData.update(data)
+
+        // Update Dashboard
+        updateUI(
+            data.latitude?.toString() ?: "0",
+            data.longitude?.toString() ?: "0",
+            data.speed?.toString() ?: "0",
+            data.heading?.toString() ?: "0",
+            data.pitch?.toString() ?: "0",
+            data.roll?.toString() ?: "0",
+            data.rot?.toString() ?: "0"
+        )
+
+        // Update Map Marker for Remote Ship
+        if (data.latitude != null && data.longitude != null) {
+            val position = LatLng(data.latitude!!, data.longitude!!)
+            val heading = data.heading?.toFloat() ?: 0f
+            val redTriangleBitmap = createOwnShipBitmap(heading)
+
+            val boatMarker = boatMarkers[shipId]
+            if (boatMarker == null) {
+                val newMarker = map.addMarker(
+                    MarkerOptions()
+                        .position(position)
+                        .icon(BitmapDescriptorFactory.fromBitmap(redTriangleBitmap))
+                        .anchor(0.5f, 0.5f)
+                        .title(channelName)
+                )
+                if (newMarker != null) {
+                    newMarker.tag = redTriangleBitmap
+                    boatMarkers[shipId] = newMarker
+                }
+                map.animateCamera(CameraUpdateFactory.newLatLngZoom(position, 15f))
+            } else {
+                boatMarker.position = position
+                boatMarker.setIcon(BitmapDescriptorFactory.fromBitmap(redTriangleBitmap))
+            }
+        }
+    }
     
     private fun switchToLocalChannel() {
+        stopRemotePolling()
         currentChannel = LOCAL_CHANNEL_ID
         channelName = "My Boat (Bluetooth)"
         updateHistoricalMarkers()
