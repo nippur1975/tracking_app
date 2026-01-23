@@ -76,6 +76,13 @@
             android:layout_height="wrap_content"
             android:text="Roll: --"
             android:textColor="#FFFFFF" />
+
+        <TextView
+            android:id="@+id/rotTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ROT: --"
+            android:textColor="#FFFFFF" />
             
          <TextView
             android:id="@+id/rulerInfoTextView"
@@ -97,19 +104,39 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/trackSwitch"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Track"
-            android:textColor="#FFFFFF" />
-
-        <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/rulerSwitch"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Ruler"
             android:textColor="#FFFFFF" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/showNamesSwitch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Show Names"
+            android:checked="true"
+            android:textColor="#FFFFFF" />
             
+    </LinearLayout>
+
+    <!-- ROT Bar Overlay at bottom of map, above buttons -->
+    <LinearLayout
+        android:id="@+id/rotBarContainer"
+        android:layout_width="match_parent"
+        android:layout_height="20dp"
+        android:orientation="horizontal"
+        android:background="#80000000"
+        app:layout_constraintBottom_toTopOf="@+id/buttonContainer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+        
+        <!-- ROT Visualization View -->
+        <com.example.segnmea.ROTView
+            android:id="@+id/rotView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
     </LinearLayout>
 
     <LinearLayout

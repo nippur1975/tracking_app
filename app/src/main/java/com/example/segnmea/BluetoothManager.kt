@@ -120,15 +120,41 @@ class BluetoothManager(
                     val readMessage = String(buffer, 0, bytes)
                     stringBuilder.append(readMessage)
                     
-                    // Process complete lines
-                    var newlineIndex = stringBuilder.indexOf('\n')
-                    while (newlineIndex != -1) {
-                        val line = stringBuilder.substring(0, newlineIndex).trim()
-                        if (line.isNotEmpty()) {
-                            handler.post { onDataReceived(line) }
+                    // Process complete lines or sentences starting with $ or ! (AIS)
+                    var delimiterIndex = indexOfDelimiter(stringBuilder)
+                    while (delimiterIndex != -1) {
+                        // Find the next start delimiter or newline
+                        var nextDelimiter = -1
+                        val nextDollar = stringBuilder.indexOf('$', delimiterIndex + 1)
+                        val nextExclamation = stringBuilder.indexOf('!', delimiterIndex + 1)
+                        val nextNewline = stringBuilder.indexOf('\n', delimiterIndex)
+                        
+                        // Find the earliest occurrence of $, !, or \n
+                        var minIndex = Int.MAX_VALUE
+                        if (nextDollar != -1) minIndex = Math.min(minIndex, nextDollar)
+                        if (nextExclamation != -1) minIndex = Math.min(minIndex, nextExclamation)
+                        if (nextNewline != -1) minIndex = Math.min(minIndex, nextNewline)
+                        
+                        if (minIndex != Int.MAX_VALUE) {
+                            nextDelimiter = minIndex
                         }
-                        stringBuilder.delete(0, newlineIndex + 1)
-                        newlineIndex = stringBuilder.indexOf('\n')
+
+                        if (nextDelimiter != -1) {
+                            val line = stringBuilder.substring(delimiterIndex, nextDelimiter).trim()
+                            if (line.isNotEmpty()) {
+                                handler.post { onDataReceived(line) }
+                            }
+                            // If delimiter was start char, we keep it for next iteration
+                            if (nextDelimiter == nextDollar || nextDelimiter == nextExclamation) {
+                                stringBuilder.delete(0, nextDelimiter)
+                            } else {
+                                stringBuilder.delete(0, nextDelimiter + 1)
+                            }
+                            delimiterIndex = indexOfDelimiter(stringBuilder)
+                        } else {
+                            // No end of sentence found yet, wait for more data
+                            break 
+                        }
                     }
                     
                 } catch (e: IOException) {
@@ -137,6 +163,15 @@ class BluetoothManager(
                     break
                 }
             }
+        }
+        
+        private fun indexOfDelimiter(sb: StringBuilder): Int {
+            val dollar = sb.indexOf('$')
+            val exclamation = sb.indexOf('!')
+            
+            if (dollar == -1) return exclamation
+            if (exclamation == -1) return dollar
+            return Math.min(dollar, exclamation)
         }
 
         fun cancel() {

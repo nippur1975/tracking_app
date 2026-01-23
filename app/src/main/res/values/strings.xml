@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">SegNmea</string>
+    <string name="app_name">LalitoTX</string>
     <string name="lat">Lat</string>
     <string name="lat_es">Latitud</string>
     <string name="lon">Lon</string>
@@ -18,7 +18,12 @@
     <string name="settings_alarms">Alarm Settings</string>
     <string name="channel_setting">Channel Settings</string>
     <string name="channel_select">Select Channel</string>
+    <string name="channel">Channels</string>
     <string name="language_select">Language</string>
+    <string name="save">Save</string>
+    <string name="compass">Compass</string>
+    <string name="clinometer">Clinometer</string>
+    <string name="data">Data</string>
     <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
         <!-- Customize your theme here. -->
     </style>

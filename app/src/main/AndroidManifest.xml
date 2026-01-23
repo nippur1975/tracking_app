@@ -8,6 +8,10 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:allowBackup="true"
@@ -21,7 +25,7 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyCCsWLI_oB-Sq6YGeCD9lEerfNNVgkkjjU" />
 
-        <activity android:name=".MainActivity" android:exported="true">
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -30,10 +34,21 @@
         <activity android:name=".CompassActivity" android:exported="false"/>
         <activity android:name=".ClinometerActivity" android:exported="false"/>
         <activity android:name=".DataActivity" android:exported="false"/>
-        <activity android:name=".LanguageActivity" android:exported="false"/>
-        <activity android:name=".ChannelActivity" android:exported="false"/>
-        <activity android:name=".AlarmActivity" android:exported="false"/>
         <activity android:name=".SettingsActivity" android:exported="false"/>
+
+        <service
+            android:name=".SupabaseForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
 
     </application>
 
