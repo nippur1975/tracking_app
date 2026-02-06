@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LalitoTX</string>
+    <string name="lat">Lat</string>
+    <string name="lat_es">Latitud</string>
+    <string name="lon">Lon</string>
+    <string name="lon_es">Longitud</string>
+    <string name="speed">Speed</string>
+    <string name="speed_es">Velocidad</string>
+    <string name="heading">Heading</string>
+    <string name="heading_es">Rumbo</string>
+    <string name="pitch">Pitch</string>
+    <string name="pitch_es">Cabeceo</string>
+    <string name="roll">Roll</string>
+    <string name="roll_es">Balanceo</string>
+    <string name="about_title">About</string>
+    <string name="about_message">NMEA Tracker App</string>
+    <string name="settings_alarms">Alarm Settings</string>
+    <string name="channel_setting">Channel Settings</string>
+    <string name="channel_select">Select Channel</string>
+    <string name="channel">Channels</string>
+    <string name="language_select">Language</string>
+    <string name="save">Save</string>
+    <string name="compass">Compass</string>
+    <string name="clinometer">Clinometer</string>
+    <string name="data">Data</string>
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+    </style>
+</resources>
