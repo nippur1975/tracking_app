@@ -94,8 +94,9 @@ class SupabaseForegroundService : Service() {
             val target = aisParser.parse(line)
             if (target != null) {
                 GlobalData.updateAis(target)
+                val fullTarget = GlobalData.getAisTarget(target.mmsi) ?: target
                 scope.launch {
-                    sendAisToSupabase(target)
+                    sendAisToSupabase(fullTarget)
                 }
             }
         } else {
@@ -166,7 +167,7 @@ class SupabaseForegroundService : Service() {
         if (target.course != null) json.put("cog", target.course)
         if (target.heading != null) json.put("heading", target.heading)
         if (target.rot != null) json.put("rot", target.rot)
-        if (target.name != null) json.put("ship_name", target.name)
+        if (!target.name.isNullOrEmpty()) json.put("ship_name", target.name)
         json.put("source_id", shipId)
         
         // For UPSERT to work on MMSI primary key, we need specific header

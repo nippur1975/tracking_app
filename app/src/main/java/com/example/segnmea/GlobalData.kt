@@ -25,6 +25,11 @@ object GlobalData {
         }
         aisListeners.forEach { it(aisTargets) }
     }
+
+    @Synchronized
+    fun getAisTarget(mmsi: Int): AisTarget? {
+        return aisTargets[mmsi]?.copy()
+    }
     
     fun addAisListener(listener: (Map<Int, AisTarget>) -> Unit) {
         aisListeners.add(listener)
