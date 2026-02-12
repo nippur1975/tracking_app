@@ -16,6 +16,11 @@ class AisParser {
 
     private val fragmentMap = mutableMapOf<String, MutableMap<Int, String>>() // msgId -> (fragNum -> payload)
 
+    // Alias for parse
+    fun getAisTarget(sentence: String): AisTarget? {
+        return parse(sentence)
+    }
+
     fun parse(sentence: String): AisTarget? {
         if (!sentence.startsWith("!AIVDM")) return null
 
