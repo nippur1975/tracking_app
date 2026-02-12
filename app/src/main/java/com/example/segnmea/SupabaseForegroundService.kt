@@ -91,7 +91,7 @@ class SupabaseForegroundService : Service() {
     
     private fun onBluetoothDataReceived(line: String) {
         if (line.startsWith("!")) {
-            val target = aisParser.parse(line)
+            val target = aisParser.getAisTarget(line)
             if (target != null) {
                 GlobalData.updateAis(target)
                 scope.launch {
