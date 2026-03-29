@@ -4,6 +4,10 @@ object GlobalData {
     // Persistent state to hold the latest known values for all fields
     var currentData: NmeaData = NmeaData()
     val aisTargets = mutableMapOf<Int, AisTarget>()
+
+    // Track History Persistence
+    val trackHistory = mutableMapOf<String, MutableList<TrackPoint>>()
+    var currentTrackDay: String = ""
     
     private val listeners = mutableListOf<(NmeaData) -> Unit>()
     private val aisListeners = mutableListOf<(Map<Int, AisTarget>) -> Unit>()

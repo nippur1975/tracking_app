@@ -56,7 +56,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private var rulerPoints = mutableListOf<LatLng>()
     private var handler = Handler(Looper.getMainLooper())
     private var boatMarkers = mutableMapOf<String, Marker>()
-    private var historicalData = mutableMapOf<String, MutableList<TrackPoint>>()
+    // historicalData moved to GlobalData to persist across configuration changes
     private var trackPolylines = mutableMapOf<String, Polyline>()
     private var markerToTrackPointMap = mutableMapOf<Marker, TrackPoint>()
     // Default to local bluetooth channel to show data immediately
@@ -65,7 +65,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     // Local Data
     private val LOCAL_CHANNEL_ID = "local_bluetooth"
-    private var currentDay = ""
+    // currentDay moved to GlobalData
     
     // Explicitly declared state variables
     var lastBluetoothDataTime: Long = System.currentTimeMillis()
@@ -228,7 +228,21 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 .color(0xFF00FF00.toInt()) // Green for local
         )
         trackPolylines[LOCAL_CHANNEL_ID] = localPolyline
-        historicalData[LOCAL_CHANNEL_ID] = mutableListOf()
+
+        // Restore track from GlobalData if available
+        if (GlobalData.trackHistory[LOCAL_CHANNEL_ID] == null) {
+            GlobalData.trackHistory[LOCAL_CHANNEL_ID] = mutableListOf()
+        }
+        val existingPoints = GlobalData.trackHistory[LOCAL_CHANNEL_ID]?.map { it.getPosition() } ?: emptyList()
+        if (existingPoints.isNotEmpty()) {
+            localPolyline.points = existingPoints
+            // Also restore boat position if we have history
+             val lastPoint = GlobalData.trackHistory[LOCAL_CHANNEL_ID]?.lastOrNull()
+             if (lastPoint != null) {
+                 // We will let the next update handle the marker creation to avoid duplication logic here,
+                 // or just wait for next update.
+             }
+        }
 
         // historicalMarkers.forEach { it.isVisible = true } // Disable historical dots
 
@@ -525,7 +539,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         channelName = "My Boat (Bluetooth)"
         updateHistoricalMarkers()
         // If we have data, center on it
-        val lastPoint = historicalData[LOCAL_CHANNEL_ID]?.lastOrNull()
+        val lastPoint = GlobalData.trackHistory[LOCAL_CHANNEL_ID]?.lastOrNull()
         if (lastPoint != null) {
             updateUI(lastPoint.lat.toString(), lastPoint.lon.toString(), lastPoint.speed, lastPoint.heading, lastPoint.pitch, lastPoint.roll)
             map.animateCamera(CameraUpdateFactory.newLatLngZoom(lastPoint.getPosition(), 15f))
@@ -586,7 +600,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun updateHistoricalMarkers() {
         markerToTrackPointMap.forEach { (marker, trackPoint) ->
-            val belongingToCurrentChannel = historicalData[currentChannel]?.contains(trackPoint) == true
+            val belongingToCurrentChannel = GlobalData.trackHistory[currentChannel]?.contains(trackPoint) == true
             marker.isVisible = belongingToCurrentChannel
         }
     }
@@ -675,20 +689,33 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         if (aggregatedData.latitude != null && aggregatedData.longitude != null) {
             val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
             
-            // Check day reset
+            // Check day reset using GlobalData
             val today = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
-            if (currentDay != today) {
+
+            // Initialize if empty (first run of app ever)
+            if (GlobalData.currentTrackDay.isEmpty()) {
+                GlobalData.currentTrackDay = today
+            }
+
+            if (GlobalData.currentTrackDay != today) {
                 // Reset track
-                historicalData[LOCAL_CHANNEL_ID]?.clear()
+                GlobalData.trackHistory[LOCAL_CHANNEL_ID]?.clear()
                 // Clear markers
                  val markersToRemove = mutableListOf<Marker>()
                 markerToTrackPointMap.forEach { (marker, trackPoint) ->
-                     if (historicalData[LOCAL_CHANNEL_ID]?.contains(trackPoint) == false) {
+                     if (GlobalData.trackHistory[LOCAL_CHANNEL_ID]?.contains(trackPoint) == false) {
                          // Only remove if it was part of the local track
                     }
                 }
-                historicalData[LOCAL_CHANNEL_ID] = mutableListOf()
-                currentDay = today
+                if (GlobalData.trackHistory[LOCAL_CHANNEL_ID] == null) {
+                    GlobalData.trackHistory[LOCAL_CHANNEL_ID] = mutableListOf()
+                }
+                GlobalData.currentTrackDay = today
+            }
+
+            // Ensure list exists
+            if (GlobalData.trackHistory[LOCAL_CHANNEL_ID] == null) {
+                GlobalData.trackHistory[LOCAL_CHANNEL_ID] = mutableListOf()
             }
 
             val trackPoint = TrackPoint(
@@ -703,12 +730,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
             // Avoid adding duplicates too frequently? Or just add.
             // For now, simple add.
-            historicalData[LOCAL_CHANNEL_ID]?.add(trackPoint)
+            GlobalData.trackHistory[LOCAL_CHANNEL_ID]?.add(trackPoint)
             
             // Update Track Polyline and Markers
             if (currentChannel == LOCAL_CHANNEL_ID) {
                 // Update Track Polyline
-                val points = historicalData[LOCAL_CHANNEL_ID]?.map { it.getPosition() } ?: emptyList()
+                val points = GlobalData.trackHistory[LOCAL_CHANNEL_ID]?.map { it.getPosition() } ?: emptyList()
                 trackPolylines[LOCAL_CHANNEL_ID]?.points = points
                 
                 // Move Boat Marker
